@@ -1,0 +1,22 @@
+{
+  "name": "tcomb-react",
+  "version": "0.0.1",
+  "description": "React integration",
+  "main": "index.js",
+  "scripts": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gcanti/tcomb-react.git"
+  },
+  "author": "Giulio Canti <giulio.canti@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gcanti/tcomb-react/issues"
+  },
+  "homepage": "https://github.com/gcanti/tcomb-react",
+  "devDependencies": {
+  },
+  "tags": [
+  ]
+}
