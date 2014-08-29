@@ -1,3 +1,3 @@
-// placeholder
-
-module.exports = 'TODO';
+module.exports = {
+  toPropTypes: require('./toPropTypes');
+};
