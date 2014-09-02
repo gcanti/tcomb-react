@@ -33,40 +33,30 @@ var Anchor = React.createClass({
 
 var mountNode = document.getElementById('app');
 
-/*
 // OK
 React.renderComponent(
   <Anchor href="#section">title</Anchor>
 , mountNode);
-*/
 
-/*
 // KO, href is missing, debugger kicks in
 React.renderComponent(
   <Anchor>title</Anchor>
 , mountNode);
-*/
 
-/*
 // KO, text is missing, debugger kicks in
 React.renderComponent(
   <Anchor href="#section"></Anchor>
 , mountNode);
-*/
 
-/*
 // KO, href is wrong, debugger kicks in
 React.renderComponent(
   <Anchor href="http://mydomain.com">title</Anchor>
 , mountNode);
-*/
 
-/*
 // KO, content is wrong, debugger kicks in
 React.renderComponent(
   <Anchor href="#section"><span>title</span></Anchor>
 , mountNode);
-*/
 
 // KO, unknown attribute not specified
 React.renderComponent(
