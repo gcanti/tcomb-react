@@ -101,3 +101,25 @@ React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
 ```
+
+## Tags
+
+For each `HTML` tag, there is a ready type in the `DOM` namespace.
+Say you want modify the above example to accept only a `span` child:
+
+```js
+var Props = struct({
+  href: Href,
+  children: Tcomb.react.DOM.Span
+}, 'Anchor');
+
+// OK
+React.renderComponent(
+  <Anchor href="#section"><span>title</span></Anchor>
+, mountNode);
+
+// KO
+React.renderComponent(
+  <Anchor href="#section">title</Anchor>
+, mountNode);
+```

@@ -24,7 +24,7 @@ var Props = struct({
 var Anchor = React.createClass({
   render: function () {
     // add this assert and you have done
-    t.react.assertEqual(this, Props, {strict: false});
+    t.react.assertEqual(this, Props);
     return (
       <a href={this.props.href}>{this.props.children}</a>
     );
@@ -38,10 +38,12 @@ React.renderComponent(
   <Anchor href="#section">title</Anchor>
 , mountNode);
 
+/*
 // KO, href is missing, debugger kicks in
 React.renderComponent(
   <Anchor>title</Anchor>
 , mountNode);
+*/
 
 // decomment below to see the other errors
 
