@@ -3,8 +3,7 @@
   "version": "0.0.1",
   "description": "React integration",
   "main": "index.js",
-  "scripts": {
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/gcanti/tcomb-react.git"
@@ -15,8 +14,15 @@
     "url": "https://github.com/gcanti/tcomb-react/issues"
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
+  "dependencies": {
+    "tcomb": "*",
+    "tcomb-validation": "*",
+    "react": "*"
+  },
   "devDependencies": {
   },
   "tags": [
+    "tcomb",
+    "react"
   ]
 }
