@@ -33,7 +33,7 @@ var Props = struct({
 
 var Anchor = React.createClass({
   render: function () {
-    // add this assert and you have done
+    // add this assert and you are done
     Tcomb.react.assertEqual(this, Props);
     return (
       <a href={this.props.href}>{this.props.children}</a>
@@ -77,7 +77,7 @@ Remember to open up the console, you'll see the debugger in action.
 
 # Api
 
-To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb)
+*To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb).*
 
 ## Asserts
 
@@ -92,6 +92,10 @@ Throws an error if you pass a wrong prop to the component.
 If set to `false`, allows unspecified properties (default `true`).
 
 ```js
+Tcomb.react.assertEqual(this, Props, {strict: false});
+
+...
+
 // OK
 React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>

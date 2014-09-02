@@ -43,6 +43,9 @@ React.renderComponent(
   <Anchor>title</Anchor>
 , mountNode);
 
+// decomment below to see the other errors
+
+/*
 // KO, text is missing, debugger kicks in
 React.renderComponent(
   <Anchor href="#section"></Anchor>
@@ -62,3 +65,4 @@ React.renderComponent(
 React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
+*/

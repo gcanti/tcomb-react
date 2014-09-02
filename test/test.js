@@ -19442,24 +19442,27 @@ React.renderComponent(
   Anchor(null, "title")
 , mountNode);
 
+// decomment below to see the other errors
+
+/*
 // KO, text is missing, debugger kicks in
 React.renderComponent(
-  Anchor({href: "#section"})
+  <Anchor href="#section"></Anchor>
 , mountNode);
 
 // KO, href is wrong, debugger kicks in
 React.renderComponent(
-  Anchor({href: "http://mydomain.com"}, "title")
+  <Anchor href="http://mydomain.com">title</Anchor>
 , mountNode);
 
 // KO, content is wrong, debugger kicks in
 React.renderComponent(
-  Anchor({href: "#section"}, React.DOM.span(null, "title"))
+  <Anchor href="#section"><span>title</span></Anchor>
 , mountNode);
 
 // KO, unknown attribute not specified
 React.renderComponent(
-  Anchor({href: "#section", unknown: "true"}, "title")
+  <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
-
+*/
 },{"../index":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}]},{},["/Users/giulio/Documents/Projects/github/tcomb-react/test/test.jsx"]);
