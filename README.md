@@ -25,7 +25,7 @@ var Href = subtype(Str, function (s) {
   return s.substring(0, 1) === '#';
 }, 'Href');
 
-// this is how you can define the props of the component
+// this is how you define the props of the component
 var Props = struct({
   href: Href,
   children: Str
@@ -46,7 +46,7 @@ React.renderComponent(
   <Anchor href="#section">title</Anchor>
 , mountNode);
 
-// KO, unknown attribute not specified
+// KO, `unknown` attribute not specified
 React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
@@ -72,7 +72,12 @@ React.renderComponent(
 , mountNode);
 ```
 
+To try this example in your browser, download the code and open [test/test.html](test/test.html).
+Remember to open up the console, you'll see the debugger in action.
+
 # Api
+
+To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb)
 
 ## Asserts
 
