@@ -1,17 +1,15 @@
 % tcomb-react
 
-This library allows you to check all the props of your React components (yes also the children). If you pass a wrong
+This library allows you to check all the props of your React components (the children too). If you pass a wrong
 prop to the component, **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it
 throws an error with **descriptive message**.
 
-# Example please!
+# Example
 
 Let's build a simple React component rendering an internal link, the component must have:
 
 - only a `href` prop and it must be a string starting with `#`
 - only one child and it must be a string
-
-here we go
 
 ```js
 var Tcomb = require('tcomb-react');
