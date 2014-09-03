@@ -16,17 +16,17 @@ var Str = Tcomb.Str;          // the string type
 var subtype = Tcomb.subtype;  // build a subtype
 var struct = Tcomb.struct;    // build a struct (i.e. a class)
 
-// a subtype is defined by a type and a predicate
 // a predicate is a function with signature (x) -> boolean
-var Href = subtype(Str, function (s) {
-  return s.substring(0, 1) === '#';
-}, 'Href');
+var predicate = function (s) { return s.substring(0, 1) === '#'; };
 
-// this is how you define the props of the component
+// the `href` spec
+var Href = subtype(Str, predicate);
+
+// the props spec
 var Props = struct({
   href: Href,
   children: Str
-}, 'Anchor');
+});
 
 var Anchor = React.createClass({
   render: function () {
@@ -37,7 +37,11 @@ var Anchor = React.createClass({
     );
   }
 });
+```
 
+here some results
+
+```js
 // OK
 React.renderComponent(
   <Anchor href="#section">title</Anchor>
