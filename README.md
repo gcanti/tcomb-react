@@ -1,12 +1,11 @@
 % tcomb-react
 
 This library allows you to check all the props of your React components (the children too). If you pass a wrong
-prop to the component, **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it
-throws an error with **descriptive message**.
+prop to the component, it throws an error with **descriptive message**.
 
-# Example
+# Example: an internal link
 
-Let's build a simple React component rendering an internal link, the component must have:
+Let's build a simple React component with a fancy spec, the component must have:
 
 - only a `href` prop and it must be a string starting with `#`
 - only one child and it must be a string
@@ -83,7 +82,7 @@ Remember to open up the console, you'll see the debugger in action.
 assertEqual(component, type, [opts])
 ```
 
-Throws an error if you pass a wrong prop to the component.
+If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with descriptive message.
 
 ### options.strict
 
