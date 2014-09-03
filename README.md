@@ -1,7 +1,7 @@
 % tcomb-react
 
 This library allows you to check all the props of your React components (the children too). If you pass a wrong
-prop to the component, it throws an error with **descriptive message**.
+prop to the component, it throws an error with a **descriptive message**.
 
 # Example: an internal link
 
@@ -86,7 +86,7 @@ Remember to open up the console, you'll see the debugger in action.
 assertEqual(component, type, [opts])
 ```
 
-If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with descriptive message.
+If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
 
 ### options.strict
 
@@ -112,7 +112,7 @@ Say you want modify the above example to accept only a `span` child:
 var Props = struct({
   href: Href,
   children: Tcomb.react.DOM.Span
-}, 'Anchor');
+});
 
 // OK
 React.renderComponent(
