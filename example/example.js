@@ -1,4 +1,73 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/giulio/Documents/Projects/github/tcomb-react/index.js":[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/giulio/Documents/Projects/github/tcomb-react/example/example.jsx":[function(require,module,exports){
+/** @jsx React.DOM */
+
+'use strict';
+
+var t = require('../index');
+var React = require('react');
+
+var Str = t.Str;
+var subtype = t.subtype;
+var struct = t.struct;
+
+// a subtype is defined by a type and a predicate
+// a predicate is a function with signature (x) -> boolean
+var Href = subtype(Str, function (s) {
+  return s.substring(0, 1) === '#';
+}, 'Href'); // add a name for better debugging
+
+// this is how you can define the props of the component
+var Props = struct({
+  href: Href,
+  children: Str
+}, 'Anchor'); // add a name for better debugging
+
+var Anchor = React.createClass({displayName: 'Anchor',
+  render: function () {
+    // add this assert and you have done
+    t.react.assertEqual(this, Props);
+    return (
+      React.DOM.a({href: this.props.href}, this.props.children)
+    );
+  }
+});
+
+var mountNode = document.getElementById('app');
+
+// OK
+React.renderComponent(
+  Anchor({href: "#section"}, "title")
+, mountNode);
+
+// KO, href is missing, debugger kicks in
+React.renderComponent(
+  Anchor(null, "title")
+, mountNode);
+
+// decomment below to see the other errors
+
+/*
+// KO, text is missing, debugger kicks in
+React.renderComponent(
+  <Anchor href="#section"></Anchor>
+, mountNode);
+
+// KO, href is wrong, debugger kicks in
+React.renderComponent(
+  <Anchor href="http://mydomain.com">title</Anchor>
+, mountNode);
+
+// KO, content is wrong, debugger kicks in
+React.renderComponent(
+  <Anchor href="#section"><span>title</span></Anchor>
+, mountNode);
+
+// KO, unknown attribute not specified
+React.renderComponent(
+  <Anchor href="#section" unknown="true">title</Anchor>
+, mountNode);
+*/
+},{"../index":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/index.js":[function(require,module,exports){
 'use strict';
 
 var t = require('tcomb');
@@ -76,9 +145,9 @@ function assertEqual(component, type, opts) {
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
-  DOM[name] = t.subtype(t.Any, function (x) {
+  DOM[name] = t.irriducible(name, function (x) {
     return x[TYPE] === tagName;
-  }, name);
+  });
 });
 
 t.react = {
@@ -19396,75 +19465,4 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/test/test.jsx":[function(require,module,exports){
-/** @jsx React.DOM */
-
-'use strict';
-
-var t = require('../index');
-var React = require('react');
-
-var Str = t.Str;
-var subtype = t.subtype;
-var struct = t.struct;
-
-// a subtype is defined by a type and a predicate
-// a predicate is a function with signature (x) -> boolean
-var Href = subtype(Str, function (s) {
-  return s.substring(0, 1) === '#';
-}, 'Href');
-
-// this is how you can define the props of the component
-var Props = struct({
-  href: Href,
-  children: Str
-}, 'Anchor');
-
-var Anchor = React.createClass({displayName: 'Anchor',
-  render: function () {
-    // add this assert and you have done
-    t.react.assertEqual(this, Props);
-    return (
-      React.DOM.a({href: this.props.href}, this.props.children)
-    );
-  }
-});
-
-var mountNode = document.getElementById('app');
-
-// OK
-React.renderComponent(
-  Anchor({href: "#section"}, "title")
-, mountNode);
-
-/*
-// KO, href is missing, debugger kicks in
-React.renderComponent(
-  <Anchor>title</Anchor>
-, mountNode);
-*/
-
-// decomment below to see the other errors
-
-/*
-// KO, text is missing, debugger kicks in
-React.renderComponent(
-  <Anchor href="#section"></Anchor>
-, mountNode);
-
-// KO, href is wrong, debugger kicks in
-React.renderComponent(
-  <Anchor href="http://mydomain.com">title</Anchor>
-, mountNode);
-
-// KO, content is wrong, debugger kicks in
-React.renderComponent(
-  <Anchor href="#section"><span>title</span></Anchor>
-, mountNode);
-
-// KO, unknown attribute not specified
-React.renderComponent(
-  <Anchor href="#section" unknown="true">title</Anchor>
-, mountNode);
-*/
-},{"../index":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}]},{},["/Users/giulio/Documents/Projects/github/tcomb-react/test/test.jsx"]);
+},{}]},{},["/Users/giulio/Documents/Projects/github/tcomb-react/example/example.jsx"]);

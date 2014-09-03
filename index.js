@@ -75,9 +75,9 @@ function assertEqual(component, type, opts) {
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
-  DOM[name] = t.subtype(t.Any, function (x) {
+  DOM[name] = t.irriducible(name, function (x) {
     return x[TYPE] === tagName;
-  }, name);
+  });
 });
 
 t.react = {

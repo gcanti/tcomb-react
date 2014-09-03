@@ -73,7 +73,7 @@ React.renderComponent(
 , mountNode);
 ```
 
-To try this example in your browser, download the code and open [test/test.html](test/test.html).
+To try this example in your browser, download the code and open [example/example.html](example/example.html).
 Remember to open up the console, you'll see the debugger in action.
 
 # Api
@@ -88,7 +88,7 @@ assertEqual(component, type, [opts])
 
 If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
 
-### options.strict
+### opts.strict
 
 If set to `false`, allows unspecified properties (default `true`).
 
