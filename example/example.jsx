@@ -4,10 +4,20 @@
 
 var t = require('../index');
 var React = require('react');
+var UnsafeAlert = require('react-bootstrap/Alert');
+var bs = require('react-bootstrap');
 
+var Any = t.Any;
+var Nil = t.Nil;
 var Str = t.Str;
+var Num = t.Num;
+var Func = t.Func;
 var subtype = t.subtype;
 var struct = t.struct;
+var enums = t.enums;
+var maybe = t.maybe;
+
+var mountNode = document.getElementById('app');
 
 // a subtype is defined by a type and a predicate
 // a predicate is a function with signature (x) -> boolean
@@ -31,21 +41,17 @@ var Anchor = React.createClass({
   }
 });
 
-var mountNode = document.getElementById('app');
-
 // OK
 React.renderComponent(
   <Anchor href="#section">title</Anchor>
 , mountNode);
 
+/*
 // KO, href is missing, debugger kicks in
 React.renderComponent(
   <Anchor>title</Anchor>
 , mountNode);
 
-// decomment below to see the other errors
-
-/*
 // KO, text is missing, debugger kicks in
 React.renderComponent(
   <Anchor href="#section"></Anchor>
@@ -66,3 +72,30 @@ React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
 */
+
+//
+// bind example
+// 
+var BsStyle = enums.of('info success warning danger', 'BsStyle');
+var BsSize = enums.of('large medium small xsmall', 'BsSize');
+
+// onDismiss and dismissAfter must either or neither passed
+var eitherOrNeither = function (x) {
+  return Nil.is(x.onDismiss) === Nil.is(x.dismissAfter);
+};
+
+var AlertProps = subtype(struct({
+  __type__: enums.of('Alert'), // ugly
+  bsStyle: maybe(BsStyle),
+  bsSize: maybe(BsSize),
+  onDismiss: maybe(Func),
+  dismissAfter: maybe(Num),
+  children: Any
+}), eitherOrNeither, 'Alert');
+
+var Alert = t.react.bind(UnsafeAlert, AlertProps);
+
+React.renderComponent(
+  <Alert bsStyle="warning">hey</Alert>
+, mountNode);
+

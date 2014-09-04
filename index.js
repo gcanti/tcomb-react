@@ -4,9 +4,7 @@ var t = require('tcomb');
 var React = require('react');
 var ReactDescriptor = require('react/lib/ReactDescriptor');
 
-var Obj = t.Obj;
 var assert = t.assert;
-var struct = t.struct;
 var isType = t.util.isType;
 
 //
@@ -24,19 +22,25 @@ function getDisplayName(x) {
   return ctor.type ? ctor.type.displayName : null;
 }
 
-//
-// asserts
-//
-
-function extractProps(x, omitType) {
-  if (t.Arr.is(x)) {
-    return x.map(extractProps);
+// given a type, extracts the struct within
+function unpackStruct(type) {
+  var kind = t.util.getKind(type);
+  if (kind === 'struct') {
+    return type;
   }
-  if (Obj.is(x)) {
+  assert(kind === 'subtype', 'only structs and subtypes of structs are allowed');
+  return unpackStruct(type.meta.type);
+}
+
+function unpackProps(x, omitType) {
+  if (t.Arr.is(x)) {
+    return x.map(unpackProps);
+  }
+  if (t.Obj.is(x)) {
     var ret = {};
     for (var k in x.props) {
       if (x.props.hasOwnProperty(k)) {
-        ret[k] = extractProps(x.props[k]);
+        ret[k] = unpackProps(x.props[k]);
       }
     }
     if (!omitType) {
@@ -46,6 +50,10 @@ function extractProps(x, omitType) {
   }
   return x;
 }
+
+//
+// asserts
+//
 
 function assertLeq(actualProps, type) {
   var expectedProps = type.meta.props;
@@ -58,14 +66,22 @@ function assertLeq(actualProps, type) {
   }
 }
 
-function assertEqual(component, type, opts) {
+function check(actualProps, type, opts, checkType) {
   opts = opts || {};
   opts.strict = t.Bool.is(opts.strict) ? opts.strict : true; 
-  var actualProps = extractProps(component, true);
-  if (opts.strict) {
-    assertLeq(actualProps, type);
+  var innerStruct = unpackStruct(type);
+  if (checkType) {
+    assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
   }
-  return new type(actualProps);
+  if (opts.strict) {
+    assertLeq(actualProps, innerStruct);
+  }
+  return type(actualProps);
+}
+
+function assertEqual(component, type, opts) {
+  var actualProps = unpackProps(component, true);
+  return check(actualProps, type, opts);
 }
 
 //
@@ -75,14 +91,55 @@ function assertEqual(component, type, opts) {
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
-  DOM[name] = t.irriducible(name, function (x) {
-    return x[TYPE] === tagName;
-  });
+  DOM[name] = t.enums.of(tagName);
 });
 
+//
+// bind
+// 
+
+function bind(component, type, opts) {
+  
+  assert(t.Func.is(component), 'Invalid argument `component` of value `%j` supplied to `bind()`, expected a component.', component);
+  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
+
+  var displayName = getDisplayName(component);
+  assert(t.Str.is(displayName), 'Invalid argument `component` of name `%s` supplied to `bind()`, the component must have a displayName.', displayName);
+
+  function Component(props) {
+    
+    // if there are no attributes React send null instead of {}
+    var value = props ? t.util.mixin({}, props) : {};
+    
+    var len = arguments.length;
+    // real props are in 0 position
+    if (len === 2) {
+      // if there is only a child, avoid an array
+      value.children = arguments[1];
+    } else if (len > 2) {
+      value.children = Array.prototype.slice.call(arguments, 1);
+    }
+    value.children = unpackProps(value.children);
+    value[TYPE] = displayName;
+
+    // check
+    check(value, type, opts, true);
+    
+    // delegate rendering to the orginal component
+    return component.apply(component, arguments);
+  }
+
+  // attach a reference
+  Component.component = component;
+  Component.type = type;
+
+  return Component;
+}
+
 t.react = {
+  DOM: DOM,
   assertEqual: assertEqual,
-  DOM: DOM
+  bind: bind
 };
 
 module.exports = t;

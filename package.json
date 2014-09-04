@@ -20,6 +20,7 @@
     "react": "*"
   },
   "devDependencies": {
+    "react-bootstrap": "*"
   },
   "tags": [
     "tcomb",

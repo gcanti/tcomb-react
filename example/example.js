@@ -5,10 +5,20 @@
 
 var t = require('../index');
 var React = require('react');
+var UnsafeAlert = require('react-bootstrap/Alert');
+var bs = require('react-bootstrap');
 
+var Any = t.Any;
+var Nil = t.Nil;
 var Str = t.Str;
+var Num = t.Num;
+var Func = t.Func;
 var subtype = t.subtype;
 var struct = t.struct;
+var enums = t.enums;
+var maybe = t.maybe;
+
+var mountNode = document.getElementById('app');
 
 // a subtype is defined by a type and a predicate
 // a predicate is a function with signature (x) -> boolean
@@ -32,21 +42,17 @@ var Anchor = React.createClass({displayName: 'Anchor',
   }
 });
 
-var mountNode = document.getElementById('app');
-
 // OK
 React.renderComponent(
   Anchor({href: "#section"}, "title")
 , mountNode);
 
+/*
 // KO, href is missing, debugger kicks in
 React.renderComponent(
-  Anchor(null, "title")
+  <Anchor>title</Anchor>
 , mountNode);
 
-// decomment below to see the other errors
-
-/*
 // KO, text is missing, debugger kicks in
 React.renderComponent(
   <Anchor href="#section"></Anchor>
@@ -67,16 +73,42 @@ React.renderComponent(
   <Anchor href="#section" unknown="true">title</Anchor>
 , mountNode);
 */
-},{"../index":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/index.js":[function(require,module,exports){
+
+//
+// bind example
+// 
+var BsStyle = enums.of('info success warning danger', 'BsStyle');
+var BsSize = enums.of('large medium small xsmall', 'BsSize');
+
+// onDismiss and dismissAfter must either or neither passed
+var eitherOrNeither = function (x) {
+  return Nil.is(x.onDismiss) === Nil.is(x.dismissAfter);
+};
+
+var AlertProps = subtype(struct({
+  __type__: enums.of('Alert'), // ugly
+  bsStyle: maybe(BsStyle),
+  bsSize: maybe(BsSize),
+  onDismiss: maybe(Func),
+  dismissAfter: maybe(Num),
+  children: Any
+}), eitherOrNeither, 'Alert');
+
+var Alert = t.react.bind(UnsafeAlert, AlertProps);
+
+React.renderComponent(
+  Alert({bsStyle: "warning"}, "hey")
+, mountNode);
+
+
+},{"../index":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js","react-bootstrap":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/main.js","react-bootstrap/Alert":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Alert.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/index.js":[function(require,module,exports){
 'use strict';
 
 var t = require('tcomb');
 var React = require('react');
 var ReactDescriptor = require('react/lib/ReactDescriptor');
 
-var Obj = t.Obj;
 var assert = t.assert;
-var struct = t.struct;
 var isType = t.util.isType;
 
 //
@@ -94,19 +126,25 @@ function getDisplayName(x) {
   return ctor.type ? ctor.type.displayName : null;
 }
 
-//
-// asserts
-//
-
-function extractProps(x, omitType) {
-  if (t.Arr.is(x)) {
-    return x.map(extractProps);
+// given a type, extracts the struct within
+function unpackStruct(type) {
+  var kind = t.util.getKind(type);
+  if (kind === 'struct') {
+    return type;
   }
-  if (Obj.is(x)) {
+  assert(kind === 'subtype', 'only structs and subtypes of structs are allowed');
+  return unpackStruct(type.meta.type);
+}
+
+function unpackProps(x, omitType) {
+  if (t.Arr.is(x)) {
+    return x.map(unpackProps);
+  }
+  if (t.Obj.is(x)) {
     var ret = {};
     for (var k in x.props) {
       if (x.props.hasOwnProperty(k)) {
-        ret[k] = extractProps(x.props[k]);
+        ret[k] = unpackProps(x.props[k]);
       }
     }
     if (!omitType) {
@@ -116,6 +154,10 @@ function extractProps(x, omitType) {
   }
   return x;
 }
+
+//
+// asserts
+//
 
 function assertLeq(actualProps, type) {
   var expectedProps = type.meta.props;
@@ -128,14 +170,22 @@ function assertLeq(actualProps, type) {
   }
 }
 
-function assertEqual(component, type, opts) {
+function check(actualProps, type, opts, checkType) {
   opts = opts || {};
   opts.strict = t.Bool.is(opts.strict) ? opts.strict : true; 
-  var actualProps = extractProps(component, true);
-  if (opts.strict) {
-    assertLeq(actualProps, type);
+  var innerStruct = unpackStruct(type);
+  if (checkType) {
+    assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
   }
-  return new type(actualProps);
+  if (opts.strict) {
+    assertLeq(actualProps, innerStruct);
+  }
+  return type(actualProps);
+}
+
+function assertEqual(component, type, opts) {
+  var actualProps = unpackProps(component, true);
+  return check(actualProps, type, opts);
 }
 
 //
@@ -145,18 +195,4762 @@ function assertEqual(component, type, opts) {
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
-  DOM[name] = t.irriducible(name, function (x) {
-    return x[TYPE] === tagName;
-  });
+  DOM[name] = t.enums.of(tagName);
 });
 
+//
+// bind
+// 
+
+function bind(component, type, opts) {
+  
+  assert(t.Func.is(component), 'Invalid argument `component` of value `%j` supplied to `bind()`, expected a component.', component);
+  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
+
+  var displayName = getDisplayName(component);
+  assert(t.Str.is(displayName), 'Invalid argument `component` of name `%s` supplied to `bind()`, the component must have a displayName.', displayName);
+
+  function Component(props) {
+    
+    // if there are no attributes React send null instead of {}
+    var value = props ? t.util.mixin({}, props) : {};
+    
+    var len = arguments.length;
+    // real props are in 0 position
+    if (len === 2) {
+      // if there is only a child, avoid an array
+      value.children = arguments[1];
+    } else if (len > 2) {
+      value.children = Array.prototype.slice.call(arguments, 1);
+    }
+    value.children = unpackProps(value.children);
+    value[TYPE] = displayName;
+
+    // check
+    check(value, type, opts, true);
+    
+    // delegate rendering to the orginal component
+    return component.apply(component, arguments);
+  }
+
+  // attach a reference
+  Component.component = component;
+  Component.type = type;
+
+  return Component;
+}
+
 t.react = {
+  DOM: DOM,
   assertEqual: assertEqual,
-  DOM: DOM
+  bind: bind
 };
 
 module.exports = t;
-},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js","react/lib/ReactDescriptor":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/ReactDescriptor.js","tcomb":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/AutoFocusMixin.js":[function(require,module,exports){
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js","react/lib/ReactDescriptor":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/ReactDescriptor.js","tcomb":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Accordion.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var PanelGroup = require('./PanelGroup');
+
+var Accordion = React.createClass({displayName: 'Accordion',
+  render: function () {
+    return this.transferPropsTo(
+      PanelGroup( {accordion:true}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Accordion;
+},{"./PanelGroup":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PanelGroup.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Affix.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var AffixMixin = require('./AffixMixin');
+var domUtils = require('./utils/domUtils');
+
+var Affix = React.createClass({displayName: 'Affix',
+  statics: {
+    domUtils: domUtils
+  },
+
+  mixins: [AffixMixin],
+
+  render: function () {
+    var holderStyle = {top: this.state.affixPositionTop};
+    return this.transferPropsTo(
+      React.DOM.div( {className:this.state.affixClass, style:holderStyle}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Affix;
+},{"./AffixMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/AffixMixin.js","./utils/domUtils":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/domUtils.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/AffixMixin.js":[function(require,module,exports){
+/* global window, document */
+
+var React = require('react');
+var domUtils = require('./utils/domUtils');
+var EventListener = require('./utils/EventListener');
+
+var AffixMixin = {
+  propTypes: {
+    offset: React.PropTypes.number,
+    offsetTop: React.PropTypes.number,
+    offsetBottom: React.PropTypes.number
+  },
+
+  getInitialState: function () {
+    return {
+      affixClass: 'affix-top'
+    };
+  },
+
+  getPinnedOffset: function (DOMNode) {
+    if (this.pinnedOffset) {
+      return this.pinnedOffset;
+    }
+
+    DOMNode.className = DOMNode.className.replace(/affix-top|affix-bottom|affix/, '');
+    DOMNode.className += DOMNode.className.length ? ' affix' : 'affix';
+
+    this.pinnedOffset = domUtils.getOffset(DOMNode).top - window.pageYOffset;
+
+    return this.pinnedOffset;
+  },
+
+  checkPosition: function () {
+    var DOMNode, scrollHeight, scrollTop, position, offsetTop, offsetBottom,
+        affix, affixType, affixPositionTop;
+
+    // TODO: or not visible
+    if (!this.isMounted()) {
+      return;
+    }
+
+    DOMNode = this.getDOMNode();
+    scrollHeight = document.documentElement.offsetHeight;
+    scrollTop = window.pageYOffset;
+    position = domUtils.getOffset(DOMNode);
+    offsetTop;
+    offsetBottom;
+
+    if (this.affixed === 'top') {
+      position.top += scrollTop;
+    }
+
+    offsetTop = this.props.offsetTop != null ?
+      this.props.offsetTop : this.props.offset;
+    offsetBottom = this.props.offsetBottom != null ?
+      this.props.offsetBottom : this.props.offset;
+
+    if (offsetTop == null && offsetBottom == null) {
+      return;
+    }
+    if (offsetTop == null) {
+      offsetTop = 0;
+    }
+    if (offsetBottom == null) {
+      offsetBottom = 0;
+    }
+
+    if (this.unpin != null && (scrollTop + this.unpin <= position.top)) {
+      affix = false;
+    } else if (offsetBottom != null && (position.top + DOMNode.offsetHeight >= scrollHeight - offsetBottom)) {
+      affix = 'bottom';
+    } else if (offsetTop != null && (scrollTop <= offsetTop)) {
+      affix = 'top';
+    } else {
+      affix = false;
+    }
+
+    if (this.affixed === affix) {
+      return;
+    }
+
+    if (this.unpin != null) {
+      DOMNode.style.top = '';
+    }
+
+    affixType = 'affix' + (affix ? '-' + affix : '');
+
+    this.affixed = affix;
+    this.unpin = affix === 'bottom' ?
+      this.getPinnedOffset(DOMNode) : null;
+
+    if (affix === 'bottom') {
+      DOMNode.className = DOMNode.className.replace(/affix-top|affix-bottom|affix/, 'affix-top');
+      affixPositionTop = scrollHeight - offsetBottom - DOMNode.offsetHeight - domUtils.getOffset(DOMNode).top;
+    }
+
+    this.setState({
+      affixClass: affixType,
+      affixPositionTop: affixPositionTop
+    });
+  },
+
+  checkPositionWithEventLoop: function () {
+    setTimeout(this.checkPosition, 0);
+  },
+
+  componentDidMount: function () {
+    this._onWindowScrollListener =
+      EventListener.listen(window, 'scroll', this.checkPosition);
+    this._onDocumentClickListener =
+      EventListener.listen(document, 'click', this.checkPositionWithEventLoop);
+  },
+
+  componentWillUnmount: function () {
+    if (this._onWindowScrollListener) {
+      this._onWindowScrollListener.remove();
+    }
+
+    if (this._onDocumentClickListener) {
+      this._onDocumentClickListener.remove();
+    }
+  },
+
+  componentDidUpdate: function (prevProps, prevState) {
+    if (prevState.affixClass === this.state.affixClass) {
+      this.checkPositionWithEventLoop();
+    }
+  }
+};
+
+module.exports = AffixMixin;
+},{"./utils/EventListener":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/EventListener.js","./utils/domUtils":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/domUtils.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Alert.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+
+var Alert = React.createClass({displayName: 'Alert',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    onDismiss: React.PropTypes.func,
+    dismissAfter: React.PropTypes.number
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'alert',
+      bsStyle: 'info'
+    };
+  },
+
+  renderDismissButton: function () {
+    return (
+      React.DOM.button(
+        {type:"button",
+        className:"close",
+        onClick:this.props.onDismiss,
+        'aria-hidden':"true"}, 
+        " × "
+      )
+    );
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+    var isDismissable = !!this.props.onDismiss;
+
+    classes['alert-dismissable'] = isDismissable;
+
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(classes)}, 
+        isDismissable ? this.renderDismissButton() : null,
+        this.props.children
+      )
+    );
+  },
+
+  componentDidMount: function() {
+    if (this.props.dismissAfter && this.props.onDismiss) {
+      this.dismissTimer = setTimeout(this.props.onDismiss, this.props.dismissAfter);
+    }
+  },
+
+  componentWillUnmount: function() {
+    clearTimeout(this.dismissTimer);
+  }
+});
+
+module.exports = Alert;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Badge.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var classSet = require('./utils/classSet');
+
+var Badge = React.createClass({displayName: 'Badge',
+  propTypes: {
+    pullRight: React.PropTypes.bool,
+  },
+
+  render: function () {
+    var classes = {
+      'pull-right': this.props.pullRight,
+      'badge': ValidComponentChildren.hasValidComponent(this.props.children)
+    };
+    return this.transferPropsTo(
+      React.DOM.span( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Badge;
+
+},{"./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js":[function(require,module,exports){
+var React = require('react');
+var constants = require('./constants');
+
+var BootstrapMixin = {
+  propTypes: {
+    bsClass: React.PropTypes.oneOf(Object.keys(constants.CLASSES)),
+    bsStyle: React.PropTypes.oneOf(Object.keys(constants.STYLES)),
+    bsSize: React.PropTypes.oneOf(Object.keys(constants.SIZES))
+  },
+
+  getBsClassSet: function () {
+    var classes = {};
+
+    var bsClass = this.props.bsClass && constants.CLASSES[this.props.bsClass];
+    if (bsClass) {
+      classes[bsClass] = true;
+
+      var prefix = bsClass + '-';
+
+      var bsSize = this.props.bsSize && constants.SIZES[this.props.bsSize];
+      if (bsSize) {
+        classes[prefix + bsSize] = true;
+      }
+
+      var bsStyle = this.props.bsStyle && constants.STYLES[this.props.bsStyle];
+      if (this.props.bsStyle) {
+        classes[prefix + bsStyle] = true;
+      }
+    }
+
+    return classes;
+  }
+};
+
+module.exports = BootstrapMixin;
+},{"./constants":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/constants.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+var Button = React.createClass({displayName: 'Button',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    active:   React.PropTypes.bool,
+    disabled: React.PropTypes.bool,
+    block:    React.PropTypes.bool,
+    navItem:    React.PropTypes.bool,
+    navDropdown: React.PropTypes.bool
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'button',
+      bsStyle: 'default',
+      type: 'button'
+    };
+  },
+
+  render: function () {
+    var classes = this.props.navDropdown ? {} : this.getBsClassSet();
+    var renderFuncName;
+
+    classes['active'] = this.props.active;
+    classes['btn-block'] = this.props.block;
+
+    if (this.props.navItem) {
+      return this.renderNavItem(classes);
+    }
+
+    renderFuncName = this.props.href || this.props.navDropdown ?
+      'renderAnchor' : 'renderButton';
+
+    return this[renderFuncName](classes);
+  },
+
+  renderAnchor: function (classes) {
+    var href = this.props.href || '#';
+    classes['disabled'] = this.props.disabled;
+
+    return this.transferPropsTo(
+      React.DOM.a(
+        {href:href,
+        className:classSet(classes),
+        role:"button"}, 
+        this.props.children
+      )
+    );
+  },
+
+  renderButton: function (classes) {
+    return this.transferPropsTo(
+      React.DOM.button(
+        {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  },
+
+  renderNavItem: function (classes) {
+    var liClasses = {
+      active: this.props.active
+    };
+
+    return (
+      React.DOM.li( {className:classSet(liClasses)}, 
+        this.renderAnchor(classes)
+      )
+    );
+  }
+});
+
+module.exports = Button;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonGroup.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+var Button = require('./Button');
+
+var ButtonGroup = React.createClass({displayName: 'ButtonGroup',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    vertical:  React.PropTypes.bool,
+    justified: React.PropTypes.bool
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'button-group'
+    };
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+    classes['btn-group'] = !this.props.vertical;
+    classes['btn-group-vertical'] = this.props.vertical;
+    classes['btn-group-justified'] = this.props.justified;
+
+    return this.transferPropsTo(
+      React.DOM.div(
+        {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = ButtonGroup;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Button":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonToolbar.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+var Button = require('./Button');
+
+var ButtonGroup = React.createClass({displayName: 'ButtonGroup',
+  mixins: [BootstrapMixin],
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'button-toolbar'
+    };
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+
+    return this.transferPropsTo(
+      React.DOM.div(
+        {role:"toolbar",
+        className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = ButtonGroup;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Button":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Carousel.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var BootstrapMixin = require('./BootstrapMixin');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+var Carousel = React.createClass({displayName: 'Carousel',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    slide: React.PropTypes.bool,
+    indicators: React.PropTypes.bool,
+    controls: React.PropTypes.bool,
+    pauseOnHover: React.PropTypes.bool,
+    wrap: React.PropTypes.bool,
+    onSelect: React.PropTypes.func,
+    onSlideEnd: React.PropTypes.func,
+    activeIndex: React.PropTypes.number,
+    defaultActiveIndex: React.PropTypes.number,
+    direction: React.PropTypes.oneOf(['prev', 'next'])
+  },
+
+  getDefaultProps: function () {
+    return {
+      slide: true,
+      interval: 5000,
+      pauseOnHover: true,
+      wrap: true,
+      indicators: true,
+      controls: true
+    };
+  },
+
+  getInitialState: function () {
+    return {
+      activeIndex: this.props.defaultActiveIndex == null ?
+        0 : this.props.defaultActiveIndex,
+      previousActiveIndex: null,
+      direction: null
+    };
+  },
+
+  getDirection: function (prevIndex, index) {
+    if (prevIndex === index) {
+      return null;
+    }
+
+    return prevIndex > index ?
+      'prev' : 'next';
+  },
+
+  componentWillReceiveProps: function (nextProps) {
+    var activeIndex = this.getActiveIndex();
+
+    if (nextProps.activeIndex != null && nextProps.activeIndex !== activeIndex) {
+      clearTimeout(this.timeout);
+      this.setState({
+        previousActiveIndex: activeIndex,
+        direction: nextProps.direction != null ?
+          nextProps.direction : this.getDirection(activeIndex, nextProps.activeIndex)
+      });
+    }
+  },
+
+  componentDidMount: function () {
+    this.waitForNext();
+  },
+
+  componentWillUnmount: function() {
+    clearTimeout(this.timeout);
+  },
+
+  next: function (e) {
+    if (e) {
+      e.preventDefault();
+    }
+
+    var index = this.getActiveIndex() + 1;
+    var count = ValidComponentChildren.numberOf(this.props.children);
+
+    if (index > count - 1) {
+      if (!this.props.wrap) {
+        return;
+      }
+      index = 0;
+    }
+
+    this.handleSelect(index, 'next');
+  },
+
+  prev: function (e) {
+    if (e) {
+      e.preventDefault();
+    }
+
+    var index = this.getActiveIndex() - 1;
+
+    if (index < 0) {
+      if (!this.props.wrap) {
+        return;
+      }
+      index = ValidComponentChildren.numberOf(this.props.children) - 1;
+    }
+
+    this.handleSelect(index, 'prev');
+  },
+
+  pause: function () {
+    this.isPaused = true;
+    clearTimeout(this.timeout);
+  },
+
+  play: function () {
+    this.isPaused = false;
+    this.waitForNext();
+  },
+
+  waitForNext: function () {
+    if (!this.isPaused && this.props.slide && this.props.interval &&
+        this.props.activeIndex == null) {
+      this.timeout = setTimeout(this.next, this.props.interval);
+    }
+  },
+
+  handleMouseOver: function () {
+    if (this.props.pauseOnHover) {
+      this.pause();
+    }
+  },
+
+  handleMouseOut: function () {
+    if (this.isPaused) {
+      this.play();
+    }
+  },
+
+  render: function () {
+    var classes = {
+      carousel: true,
+      slide: this.props.slide
+    };
+
+    return this.transferPropsTo(
+      React.DOM.div(
+        {className:classSet(classes),
+        onMouseOver:this.handleMouseOver,
+        onMouseOut:this.handleMouseOut}, 
+        this.props.indicators ? this.renderIndicators() : null,
+        React.DOM.div( {className:"carousel-inner", ref:"inner"}, 
+          ValidComponentChildren.map(this.props.children, this.renderItem)
+        ),
+        this.props.controls ? this.renderControls() : null
+      )
+    );
+  },
+
+  renderPrev: function () {
+    return (
+      React.DOM.a( {className:"left carousel-control", href:"#prev", key:0, onClick:this.prev}, 
+        React.DOM.span( {className:"glyphicon glyphicon-chevron-left"} )
+      )
+    );
+  },
+
+  renderNext: function () {
+    return (
+      React.DOM.a( {className:"right carousel-control", href:"#next", key:1, onClick:this.next}, 
+        React.DOM.span( {className:"glyphicon glyphicon-chevron-right"})
+      )
+    );
+  },
+
+  renderControls: function () {
+    if (this.props.wrap) {
+      var activeIndex = this.getActiveIndex();
+      var count = ValidComponentChildren.numberOf(this.props.children);
+
+      return [
+        (activeIndex !== 0) ? this.renderPrev() : null,
+        (activeIndex !== count - 1) ? this.renderNext() : null
+      ];
+    }
+
+    return [
+      this.renderPrev(),
+      this.renderNext()
+    ];
+  },
+
+  renderIndicator: function (child, index) {
+    var className = (index === this.getActiveIndex()) ?
+      'active' : null;
+
+    return (
+      React.DOM.li(
+        {key:index,
+        className:className,
+        onClick:this.handleSelect.bind(this, index, null)} )
+    );
+  },
+
+  renderIndicators: function () {
+    var indicators = [];
+    ValidComponentChildren
+      .forEach(this.props.children, function(child, index) {
+        indicators.push(
+          this.renderIndicator(child, index),
+
+          // Force whitespace between indicator elements, bootstrap
+          // requires this for correct spacing of elements.
+          ' '
+        );
+      }, this);
+
+    return (
+      React.DOM.ol( {className:"carousel-indicators"}, 
+        indicators
+      )
+    );
+  },
+
+  getActiveIndex: function () {
+    return this.props.activeIndex != null ? this.props.activeIndex : this.state.activeIndex;
+  },
+
+  handleItemAnimateOutEnd: function () {
+    this.setState({
+      previousActiveIndex: null,
+      direction: null
+    }, function() {
+      this.waitForNext();
+
+      if (this.props.onSlideEnd) {
+        this.props.onSlideEnd();
+      }
+    });
+  },
+
+  renderItem: function (child, index) {
+    var activeIndex = this.getActiveIndex();
+    var isActive = (index === activeIndex);
+    var isPreviousActive = this.state.previousActiveIndex != null &&
+            this.state.previousActiveIndex === index && this.props.slide;
+
+    return cloneWithProps(
+        child,
+        {
+          active: isActive,
+          ref: child.props.ref,
+          key: child.props.key != null ?
+            child.props.key : index,
+          index: index,
+          animateOut: isPreviousActive,
+          animateIn: isActive && this.state.previousActiveIndex != null && this.props.slide,
+          direction: this.state.direction,
+          onAnimateOutEnd: isPreviousActive ? this.handleItemAnimateOutEnd: null
+        }
+      );
+  },
+
+  handleSelect: function (index, direction) {
+    clearTimeout(this.timeout);
+
+    var previousActiveIndex = this.getActiveIndex();
+    direction = direction || this.getDirection(previousActiveIndex, index);
+
+    if (this.props.onSelect) {
+      this.props.onSelect(index, direction);
+    }
+
+    if (this.props.activeIndex == null && index !== previousActiveIndex) {
+      if (this.state.previousActiveIndex != null) {
+        // If currently animating don't activate the new index.
+        // TODO: look into queuing this canceled call and
+        // animating after the current animation has ended.
+        return;
+      }
+
+      this.setState({
+        activeIndex: index,
+        previousActiveIndex: previousActiveIndex,
+        direction: direction
+      });
+    }
+  }
+});
+
+module.exports = Carousel;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CarouselItem.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var TransitionEvents = require('./utils/TransitionEvents');
+
+var CarouselItem = React.createClass({displayName: 'CarouselItem',
+  propTypes: {
+    direction: React.PropTypes.oneOf(['prev', 'next']),
+    onAnimateOutEnd: React.PropTypes.func,
+    active: React.PropTypes.bool,
+    caption: React.PropTypes.renderable
+  },
+
+  getInitialState: function () {
+    return {
+      direction: null
+    };
+  },
+
+  getDefaultProps: function () {
+    return {
+      animation: true
+    };
+  },
+
+  handleAnimateOutEnd: function () {
+    if (this.props.onAnimateOutEnd && this.isMounted()) {
+      this.props.onAnimateOutEnd(this.props.index);
+    }
+  },
+
+  componentWillReceiveProps: function (nextProps) {
+    if (this.props.active !== nextProps.active) {
+      this.setState({
+        direction: null
+      });
+    }
+  },
+
+  componentDidUpdate: function (prevProps) {
+    if (!this.props.active && prevProps.active) {
+      TransitionEvents.addEndEventListener(
+        this.getDOMNode(),
+        this.handleAnimateOutEnd
+      );
+    }
+
+    if (this.props.active !== prevProps.active) {
+      setTimeout(this.startAnimation, 20);
+    }
+  },
+
+  startAnimation: function () {
+    if (!this.isMounted()) {
+      return;
+    }
+
+    this.setState({
+      direction: this.props.direction === 'prev' ?
+        'right' : 'left'
+    });
+  },
+
+  render: function () {
+    var classes = {
+      item: true,
+      active: (this.props.active && !this.props.animateIn) || this.props.animateOut,
+      next: this.props.active && this.props.animateIn && this.props.direction === 'next',
+      prev: this.props.active && this.props.animateIn && this.props.direction === 'prev'
+    };
+
+    if (this.state.direction && (this.props.animateIn || this.props.animateOut)) {
+      classes[this.state.direction] = true;
+    }
+
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(classes)}, 
+        this.props.children,
+        this.props.caption ? this.renderCaption() : null
+      )
+    );
+  },
+
+  renderCaption: function () {
+    return (
+      React.DOM.div( {className:"carousel-caption"}, 
+        this.props.caption
+      )
+    );
+  }
+});
+
+module.exports = CarouselItem;
+},{"./utils/TransitionEvents":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/TransitionEvents.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Col.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var CustomPropTypes = require('./utils/CustomPropTypes');
+var constants = require('./constants');
+
+
+var Col = React.createClass({displayName: 'Col',
+  propTypes: {
+    xs: React.PropTypes.number,
+    sm: React.PropTypes.number,
+    md: React.PropTypes.number,
+    lg: React.PropTypes.number,
+    xsOffset: React.PropTypes.number,
+    smOffset: React.PropTypes.number,
+    mdOffset: React.PropTypes.number,
+    lgOffset: React.PropTypes.number,
+    xsPush: React.PropTypes.number,
+    smPush: React.PropTypes.number,
+    mdPush: React.PropTypes.number,
+    lgPush: React.PropTypes.number,
+    xsPull: React.PropTypes.number,
+    smPull: React.PropTypes.number,
+    mdPull: React.PropTypes.number,
+    lgPull: React.PropTypes.number,
+    componentClass: CustomPropTypes.componentClass
+  },
+
+  getDefaultProps: function () {
+    return {
+      componentClass: React.DOM.div
+    };
+  },
+
+  render: function () {
+    var componentClass = this.props.componentClass;
+    var classes = {};
+
+    Object.keys(constants.SIZES).forEach(function (key) {
+      var size = constants.SIZES[key];
+      var prop = size;
+      var classPart = size + '-';
+
+      if (this.props[prop]) {
+        classes['col-' + classPart + this.props[prop]] = true;
+      }
+
+      prop = size + 'Offset';
+      classPart = size + '-offset-';
+      if (this.props[prop]) {
+        classes['col-' + classPart + this.props[prop]] = true;
+      }
+
+      prop = size + 'Push';
+      classPart = size + '-push-';
+      if (this.props[prop]) {
+        classes['col-' + classPart + this.props[prop]] = true;
+      }
+
+      prop = size + 'Pull';
+      classPart = size + '-pull-';
+      if (this.props[prop]) {
+        classes['col-' + classPart + this.props[prop]] = true;
+      }
+    }, this);
+
+    return this.transferPropsTo(
+      componentClass( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Col;
+},{"./constants":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/constants.js","./utils/CustomPropTypes":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CollapsableMixin.js":[function(require,module,exports){
+var React = require('react');
+var TransitionEvents = require('./utils/TransitionEvents');
+
+var CollapsableMixin = {
+
+  propTypes: {
+    collapsable: React.PropTypes.bool,
+    defaultExpanded: React.PropTypes.bool,
+    expanded: React.PropTypes.bool
+  },
+
+  getInitialState: function () {
+    return {
+      expanded: this.props.defaultExpanded != null ? this.props.defaultExpanded : null,
+      collapsing: false
+    };
+  },
+
+  handleTransitionEnd: function () {
+    this._collapseEnd = true;
+    this.setState({
+      collapsing: false
+    });
+  },
+
+  componentWillReceiveProps: function (newProps) {
+    if (this.props.collapsable && newProps.expanded !== this.props.expanded) {
+      this._collapseEnd = false;
+      this.setState({
+        collapsing: true
+      });
+    }
+  },
+
+  _addEndTransitionListener: function () {
+    var node = this.getCollapsableDOMNode();
+
+    if (node) {
+      TransitionEvents.addEndEventListener(
+        node,
+        this.handleTransitionEnd
+      );
+    }
+  },
+
+  _removeEndTransitionListener: function () {
+    var node = this.getCollapsableDOMNode();
+
+    if (node) {
+      TransitionEvents.addEndEventListener(
+        node,
+        this.handleTransitionEnd
+      );
+    }
+  },
+
+  componentDidMount: function () {
+    this._afterRender();
+  },
+
+  componentWillUnmount: function () {
+    this._removeEndTransitionListener();
+  },
+
+  componentWillUpdate: function (nextProps) {
+    var dimension = (typeof this.getCollapsableDimension === 'function') ?
+      this.getCollapsableDimension() : 'height';
+    var node = this.getCollapsableDOMNode();
+
+    this._removeEndTransitionListener();
+    if (node && nextProps.expanded !== this.props.expanded && this.props.expanded) {
+      node.style[dimension] = this.getCollapsableDimensionValue() + 'px';
+    }
+  },
+
+  componentDidUpdate: function (prevProps, prevState) {
+    if (this.state.collapsing !== prevState.collapsing) {
+      this._afterRender();
+    }
+  },
+
+  _afterRender: function () {
+    if (!this.props.collapsable) {
+      return;
+    }
+
+    this._addEndTransitionListener();
+    setTimeout(this._updateDimensionAfterRender, 0);
+  },
+
+  _updateDimensionAfterRender: function () {
+    var dimension = (typeof this.getCollapsableDimension === 'function') ?
+      this.getCollapsableDimension() : 'height';
+    var node = this.getCollapsableDOMNode();
+
+    if (node) {
+      node.style[dimension] = this.isExpanded() ?
+        this.getCollapsableDimensionValue() + 'px' : '0px';
+    }
+  },
+
+  isExpanded: function () {
+    return (this.props.expanded != null) ?
+      this.props.expanded : this.state.expanded;
+  },
+
+  getCollapsableClassSet: function (className) {
+    var classes = {};
+
+    if (typeof className === 'string') {
+      className.split(' ').forEach(function (className) {
+        if (className) {
+          classes[className] = true;
+        }
+      });
+    }
+
+    classes.collapsing = this.state.collapsing;
+    classes.collapse = !this.state.collapsing;
+    classes['in'] = this.isExpanded() && !this.state.collapsing;
+
+    return classes;
+  }
+};
+
+module.exports = CollapsableMixin;
+},{"./utils/TransitionEvents":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/TransitionEvents.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownButton.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var createChainedFunction = require('./utils/createChainedFunction');
+var BootstrapMixin = require('./BootstrapMixin');
+var DropdownStateMixin = require('./DropdownStateMixin');
+var Button = require('./Button');
+var ButtonGroup = require('./ButtonGroup');
+var DropdownMenu = require('./DropdownMenu');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+
+var DropdownButton = React.createClass({displayName: 'DropdownButton',
+  mixins: [BootstrapMixin, DropdownStateMixin],
+
+  propTypes: {
+    pullRight: React.PropTypes.bool,
+    dropup:    React.PropTypes.bool,
+    title:     React.PropTypes.renderable,
+    href:      React.PropTypes.string,
+    onClick:   React.PropTypes.func,
+    onSelect:  React.PropTypes.func,
+    navItem:   React.PropTypes.bool
+  },
+
+  render: function () {
+    var className = 'dropdown-toggle';
+
+    var renderMethod = this.props.navItem ?
+      'renderNavItem' : 'renderButtonGroup';
+
+    return this[renderMethod]([
+      this.transferPropsTo(Button(
+        {ref:"dropdownButton",
+        className:className,
+        onClick:this.handleDropdownClick,
+        key:0,
+        navDropdown:this.props.navItem,
+        navItem:null,
+        title:null,
+        pullRight:null,
+        dropup:null}, 
+        this.props.title,' ',
+        React.DOM.span( {className:"caret"} )
+      )),
+      DropdownMenu(
+        {ref:"menu",
+        'aria-labelledby':this.props.id,
+        pullRight:this.props.pullRight,
+        key:1}, 
+        ValidComponentChildren.map(this.props.children, this.renderMenuItem)
+      )
+    ]);
+  },
+
+  renderButtonGroup: function (children) {
+    var groupClasses = {
+        'open': this.state.open,
+        'dropup': this.props.dropup
+      };
+
+    return (
+      ButtonGroup(
+        {bsSize:this.props.bsSize,
+        className:classSet(groupClasses)}, 
+        children
+      )
+    );
+  },
+
+  renderNavItem: function (children) {
+    var classes = {
+        'dropdown': true,
+        'open': this.state.open,
+        'dropup': this.props.dropup
+      };
+
+    return (
+      React.DOM.li( {className:classSet(classes)}, 
+        children
+      )
+    );
+  },
+
+  renderMenuItem: function (child) {
+    // Only handle the option selection if an onSelect prop has been set on the
+    // component or it's child, this allows a user not to pass an onSelect
+    // handler and have the browser preform the default action.
+    var handleOptionSelect = this.props.onSelect || child.props.onSelect ?
+      this.handleOptionSelect : null;
+
+    return cloneWithProps(
+      child,
+      {
+        // Capture onSelect events
+        onSelect: createChainedFunction(child.props.onSelect, handleOptionSelect),
+
+        // Force special props to be transferred
+        key: child.props.key,
+        ref: child.props.ref
+      }
+    );
+  },
+
+  handleDropdownClick: function (e) {
+    e.preventDefault();
+
+    this.setDropdownState(!this.state.open);
+  },
+
+  handleOptionSelect: function (key) {
+    if (this.props.onSelect) {
+      this.props.onSelect(key);
+    }
+
+    this.setDropdownState(false);
+  }
+});
+
+module.exports = DropdownButton;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Button":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js","./ButtonGroup":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonGroup.js","./DropdownMenu":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownMenu.js","./DropdownStateMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownStateMixin.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownMenu.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var createChainedFunction = require('./utils/createChainedFunction');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+var DropdownMenu = React.createClass({displayName: 'DropdownMenu',
+  propTypes: {
+    pullRight: React.PropTypes.bool,
+    onSelect: React.PropTypes.func
+  },
+
+  render: function () {
+    var classes = {
+        'dropdown-menu': true,
+        'dropdown-menu-right': this.props.pullRight
+      };
+
+    return this.transferPropsTo(
+        React.DOM.ul(
+          {className:classSet(classes),
+          role:"menu"}, 
+          ValidComponentChildren.map(this.props.children, this.renderMenuItem)
+        )
+      );
+  },
+
+  renderMenuItem: function (child) {
+    return cloneWithProps(
+      child,
+      {
+        // Capture onSelect events
+        onSelect: createChainedFunction(child.props.onSelect, this.props.onSelect),
+
+        // Force special props to be transferred
+        key: child.props.key,
+        ref: child.props.ref
+      }
+    );
+  }
+});
+
+module.exports = DropdownMenu;
+},{"./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownStateMixin.js":[function(require,module,exports){
+var React = require('react');
+var EventListener = require('./utils/EventListener');
+
+/**
+ * Checks whether a node is within
+ * a root nodes tree
+ *
+ * @param {DOMElement} node
+ * @param {DOMElement} root
+ * @returns {boolean}
+ */
+function isNodeInRoot(node, root) {
+  while (node) {
+    if (node === root) {
+      return true;
+    }
+    node = node.parentNode;
+  }
+
+  return false;
+}
+
+var DropdownStateMixin = {
+  getInitialState: function () {
+    return {
+      open: false
+    };
+  },
+
+  setDropdownState: function (newState, onStateChangeComplete) {
+    if (newState) {
+      this.bindRootCloseHandlers();
+    } else {
+      this.unbindRootCloseHandlers();
+    }
+
+    this.setState({
+      open: newState
+    }, onStateChangeComplete);
+  },
+
+  handleDocumentKeyUp: function (e) {
+    if (e.keyCode === 27) {
+      this.setDropdownState(false);
+    }
+  },
+
+  handleDocumentClick: function (e) {
+    // If the click originated from within this component
+    // don't do anything.
+    if (isNodeInRoot(e.target, this.getDOMNode())) {
+      return;
+    }
+
+    this.setDropdownState(false);
+  },
+
+  bindRootCloseHandlers: function () {
+    this._onDocumentClickListener =
+      EventListener.listen(document, 'click', this.handleDocumentClick);
+    this._onDocumentKeyupListener =
+      EventListener.listen(document, 'keyup', this.handleDocumentKeyUp);
+  },
+
+  unbindRootCloseHandlers: function () {
+    if (this._onDocumentClickListener) {
+      this._onDocumentClickListener.remove();
+    }
+
+    if (this._onDocumentKeyupListener) {
+      this._onDocumentKeyupListener.remove();
+    }
+  },
+
+  componentWillUnmount: function () {
+    this.unbindRootCloseHandlers();
+  }
+};
+
+module.exports = DropdownStateMixin;
+},{"./utils/EventListener":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/EventListener.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/FadeMixin.js":[function(require,module,exports){
+var React = require('react');
+
+// TODO: listen for onTransitionEnd to remove el
+module.exports = {
+  _fadeIn: function () {
+    var els;
+
+    if (this.isMounted()) {
+      els = this.getDOMNode().querySelectorAll('.fade');
+      if (els.length) {
+        Array.prototype.forEach.call(els, function (el) {
+          el.className += ' in';
+        });
+      }
+    }
+  },
+
+  _fadeOut: function () {
+    var els = this._fadeOutEl.querySelectorAll('.fade.in');
+
+    if (els.length) {
+      Array.prototype.forEach.call(els, function (el) {
+        el.className = el.className.replace(/\bin\b/, '');
+      });
+    }
+
+    setTimeout(this._handleFadeOutEnd, 300);
+  },
+
+  _handleFadeOutEnd: function () {
+    if (this._fadeOutEl && this._fadeOutEl.parentNode) {
+      this._fadeOutEl.parentNode.removeChild(this._fadeOutEl);
+    }
+  },
+
+  componentDidMount: function () {
+    if (document.querySelectorAll) {
+      // Firefox needs delay for transition to be triggered
+      setTimeout(this._fadeIn, 20);
+    }
+  },
+
+  componentWillUnmount: function () {
+    var els = this.getDOMNode().querySelectorAll('.fade');
+    if (els.length) {
+      this._fadeOutEl = document.createElement('div');
+      document.body.appendChild(this._fadeOutEl);
+      this._fadeOutEl.appendChild(this.getDOMNode().cloneNode(true));
+      // Firefox needs delay for transition to be triggered
+      setTimeout(this._fadeOut, 20);
+    }
+  }
+};
+
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Glyphicon.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+var constants = require('./constants');
+
+var Glyphicon = React.createClass({displayName: 'Glyphicon',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    glyph: React.PropTypes.oneOf(constants.GLYPHS).isRequired
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'glyphicon'
+    };
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+
+    classes['glyphicon-' + this.props.glyph] = true;
+
+    return this.transferPropsTo(
+      React.DOM.span( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Glyphicon;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./constants":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/constants.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Grid.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var CustomPropTypes = require('./utils/CustomPropTypes');
+
+
+var Grid = React.createClass({displayName: 'Grid',
+  propTypes: {
+    fluid: React.PropTypes.bool,
+    componentClass: CustomPropTypes.componentClass
+  },
+
+  getDefaultProps: function () {
+    return {
+      componentClass: React.DOM.div
+    };
+  },
+
+  render: function () {
+    var componentClass = this.props.componentClass;
+
+    return this.transferPropsTo(
+      componentClass( {className:this.props.fluid ? 'container-fluid' : 'container'}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Grid;
+},{"./utils/CustomPropTypes":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Input.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+
+var Input = React.createClass({displayName: 'Input',
+  propTypes: {
+    type: React.PropTypes.string,
+    label: React.PropTypes.renderable,
+    help: React.PropTypes.renderable,
+    addonBefore: React.PropTypes.renderable,
+    addonAfter: React.PropTypes.renderable,
+    bsStyle: React.PropTypes.oneOf(['success', 'warning', 'error']),
+    hasFeedback: React.PropTypes.bool,
+    groupClassName: React.PropTypes.string,
+    wrapperClassName: React.PropTypes.string,
+    labelClassName: React.PropTypes.string
+  },
+
+  getInputDOMNode: function () {
+    return this.refs.input.getDOMNode();
+  },
+
+  getValue: function () {
+    if (this.props.type === 'static') {
+      return this.props.value;
+    }
+    else if (this.props.type) {
+      return this.getInputDOMNode().value;
+    }
+    else {
+      throw Error('Cannot use getValue without specifying input type.');
+    }
+  },
+
+  getChecked: function () {
+    return this.getInputDOMNode().checked;
+  },
+
+  isCheckboxOrRadio: function () {
+    return this.props.type === 'radio' || this.props.type === 'checkbox';
+  },
+
+  renderInput: function () {
+    var input = null;
+
+    if (!this.props.type) {
+      return this.props.children
+    }
+
+    switch (this.props.type) {
+      case 'select':
+        input = (
+          React.DOM.select( {className:"form-control", ref:"input", key:"input"}, 
+            this.props.children
+          )
+        );
+        break;
+      case 'textarea':
+        input = React.DOM.textarea( {className:"form-control", ref:"input", key:"input"} );
+        break;
+      case 'static':
+        input = (
+          React.DOM.p( {className:"form-control-static", ref:"input",  key:"input"}, 
+            this.props.value
+          )
+        );
+        break;
+      default:
+        var className = this.isCheckboxOrRadio() ? '' : 'form-control';
+        input = React.DOM.input( {className:className, ref:"input", key:"input"} );
+    }
+
+    return this.transferPropsTo(input);
+  },
+
+  renderInputGroup: function (children) {
+    var addonBefore = this.props.addonBefore ? (
+      React.DOM.span( {className:"input-group-addon", key:"addonBefore"}, 
+        this.props.addonBefore
+      )
+    ) : null;
+
+    var addonAfter = this.props.addonAfter ? (
+      React.DOM.span( {className:"input-group-addon", key:"addonAfter"}, 
+        this.props.addonAfter
+      )
+    ) : null;
+
+    return addonBefore || addonAfter ? (
+      React.DOM.div( {className:"input-group", key:"input-group"}, 
+        addonBefore,
+        children,
+        addonAfter
+      )
+    ) : children;
+  },
+
+  renderIcon: function () {
+    var classes = {
+      'glyphicon': true,
+      'form-control-feedback': true,
+      'glyphicon-ok': this.props.bsStyle === 'success',
+      'glyphicon-warning-sign': this.props.bsStyle === 'warning',
+      'glyphicon-remove': this.props.bsStyle === 'error'
+    };
+
+    return this.props.hasFeedback ? (
+      React.DOM.span( {className:classSet(classes), key:"icon"} )
+    ) : null;
+  },
+
+  renderHelp: function () {
+    return this.props.help ? (
+      React.DOM.span( {className:"help-block", key:"help"}, 
+        this.props.help
+      )
+    ) : null;
+  },
+
+  renderCheckboxandRadioWrapper: function (children) {
+    var classes = {
+      'checkbox': this.props.type === 'checkbox',
+      'radio': this.props.type === 'radio'
+    };
+
+    return (
+      React.DOM.div( {className:classSet(classes), key:"checkboxRadioWrapper"}, 
+        children
+      )
+    );
+  },
+
+  renderWrapper: function (children) {
+    return this.props.wrapperClassName ? (
+      React.DOM.div( {className:this.props.wrapperClassName, key:"wrapper"}, 
+        children
+      )
+    ) : children;
+  },
+
+  renderLabel: function (children) {
+    var classes = {
+      'control-label': !this.isCheckboxOrRadio()
+    };
+    classes[this.props.labelClassName] = this.props.labelClassName;
+
+    return this.props.label ? (
+      React.DOM.label( {htmlFor:this.props.id, className:classSet(classes), key:"label"}, 
+        children,
+        this.props.label
+      )
+    ) : children;
+  },
+
+  renderFormGroup: function (children) {
+    var classes = {
+      'form-group': true,
+      'has-feedback': this.props.hasFeedback,
+      'has-success': this.props.bsStyle === 'success',
+      'has-warning': this.props.bsStyle === 'warning',
+      'has-error': this.props.bsStyle === 'error'
+    };
+    classes[this.props.groupClassName] = this.props.groupClassName;
+
+    return (
+      React.DOM.div( {className:classSet(classes)}, 
+        children
+      )
+    );
+  },
+
+  render: function () {
+    if (this.isCheckboxOrRadio()) {
+      return this.renderFormGroup(
+        this.renderWrapper([
+          this.renderCheckboxandRadioWrapper(
+            this.renderLabel(
+              this.renderInput()
+            )
+          ),
+          this.renderHelp()
+        ])
+      );
+    }
+    else {
+      return this.renderFormGroup([
+        this.renderLabel(),
+        this.renderWrapper([
+          this.renderInputGroup(
+            this.renderInput()
+          ),
+          this.renderIcon(),
+          this.renderHelp()
+        ])
+      ]);
+    }
+  }
+});
+
+module.exports = Input;
+
+},{"./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Interpolate.js":[function(require,module,exports){
+// https://www.npmjs.org/package/react-interpolate-component
+'use strict';
+
+var React = require('react');
+var merge = require('./utils/merge');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+var REGEXP = /\%\((.+?)\)s/;
+
+var Interpolate = React.createClass({
+  displayName: 'Interpolate',
+
+  propTypes: {
+    format: React.PropTypes.string
+  },
+
+  getDefaultProps: function() {
+    return { component: React.DOM.span };
+  },
+
+  render: function() {
+    var format = ValidComponentChildren.hasValidComponent(this.props.children) ? this.props.children : this.props.format;
+    var parent = this.props.component;
+    var unsafe = this.props.unsafe === true;
+    var props = merge(this.props);
+
+    delete props.children;
+    delete props.format;
+    delete props.component;
+    delete props.unsafe;
+
+    if (unsafe) {
+      var content = format.split(REGEXP).reduce(function(memo, match, index) {
+        var html;
+
+        if (index % 2 === 0) {
+          html = match;
+        } else {
+          html = props[match];
+          delete props[match];
+        }
+
+        if (React.isValidComponent(html)) {
+          throw new Error('cannot interpolate a React component into unsafe text');
+        }
+
+        memo += html;
+
+        return memo;
+      }, '');
+
+      props.dangerouslySetInnerHTML = { __html: content };
+
+      return parent(props);
+    } else {
+      var args = format.split(REGEXP).reduce(function(memo, match, index) {
+        var child;
+
+        if (index % 2 === 0) {
+          if (match.length === 0) {
+            return memo;
+          }
+
+          child = match;
+        } else {
+          child = props[match];
+          delete props[match];
+        }
+
+        memo.push(child);
+
+        return memo;
+      }, [props]);
+
+      return parent.apply(null, args);
+    }
+  }
+});
+
+module.exports = Interpolate;
+
+},{"./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/merge.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Jumbotron.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+
+var Jumbotron = React.createClass({displayName: 'Jumbotron',
+
+  render: function () {
+    return this.transferPropsTo(
+      React.DOM.div( {className:"jumbotron"}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Jumbotron;
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Label.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+var Label = React.createClass({displayName: 'Label',
+  mixins: [BootstrapMixin],
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'label',
+      bsStyle: 'default'
+    };
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+
+    return this.transferPropsTo(
+      React.DOM.span( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Label;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/MenuItem.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+
+var MenuItem = React.createClass({displayName: 'MenuItem',
+  propTypes: {
+    header:   React.PropTypes.bool,
+    divider:  React.PropTypes.bool,
+    href:     React.PropTypes.string,
+    title:    React.PropTypes.string,
+    onSelect: React.PropTypes.func
+  },
+
+  getDefaultProps: function () {
+    return {
+      href: '#'
+    };
+  },
+
+  handleClick: function (e) {
+    if (this.props.onSelect) {
+      e.preventDefault();
+      this.props.onSelect(this.props.key);
+    }
+  },
+
+  renderAnchor: function () {
+    return (
+      React.DOM.a( {onClick:this.handleClick, href:this.props.href, title:this.props.title, tabIndex:"-1"}, 
+        this.props.children
+      )
+    );
+  },
+
+  render: function () {
+    var classes = {
+        'dropdown-header': this.props.header,
+        'divider': this.props.divider
+      };
+
+    var children = null;
+    if (this.props.header) {
+      children = this.props.children;
+    } else if (!this.props.divider) {
+      children = this.renderAnchor();
+    }
+
+    return this.transferPropsTo(
+      React.DOM.li( {role:"presentation", title:null, href:null, className:classSet(classes)}, 
+        children
+      )
+    );
+  }
+});
+
+module.exports = MenuItem;
+},{"./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Modal.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+var FadeMixin = require('./FadeMixin');
+var EventListener = require('./utils/EventListener');
+
+
+// TODO:
+// - aria-labelledby
+// - Add `modal-body` div if only one child passed in that doesn't already have it
+// - Tests
+
+var Modal = React.createClass({displayName: 'Modal',
+  mixins: [BootstrapMixin, FadeMixin],
+
+  propTypes: {
+    title: React.PropTypes.renderable,
+    backdrop: React.PropTypes.oneOf(['static', true, false]),
+    keyboard: React.PropTypes.bool,
+    closeButton: React.PropTypes.bool,
+    animation: React.PropTypes.bool,
+    onRequestHide: React.PropTypes.func.isRequired
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'modal',
+      backdrop: true,
+      keyboard: true,
+      animation: true,
+      closeButton: true
+    };
+  },
+
+  render: function () {
+    var modalStyle = {display: 'block'};
+    var dialogClasses = this.getBsClassSet();
+    delete dialogClasses.modal;
+    dialogClasses['modal-dialog'] = true;
+
+    var classes = {
+      modal: true,
+      fade: this.props.animation,
+      'in': !this.props.animation || !document.querySelectorAll
+    };
+
+    var modal = this.transferPropsTo(
+      React.DOM.div(
+        {title:null,
+        tabIndex:"-1",
+        role:"dialog",
+        style:modalStyle,
+        className:classSet(classes),
+        onClick:this.props.backdrop === true ? this.handleBackdropClick : null,
+        ref:"modal"}, 
+        React.DOM.div( {className:classSet(dialogClasses)}, 
+          React.DOM.div( {className:"modal-content"}, 
+            this.props.title ? this.renderHeader() : null,
+            this.props.children
+          )
+        )
+      )
+    );
+
+    return this.props.backdrop ?
+      this.renderBackdrop(modal) : modal;
+  },
+
+  renderBackdrop: function (modal) {
+    var classes = {
+      'modal-backdrop': true,
+      'fade': this.props.animation
+    };
+
+    classes['in'] = !this.props.animation || !document.querySelectorAll;
+
+    var onClick = this.props.backdrop === true ?
+      this.handleBackdropClick : null;
+
+    return (
+      React.DOM.div(null, 
+        React.DOM.div( {className:classSet(classes), ref:"backdrop", onClick:onClick} ),
+        modal
+      )
+    );
+  },
+
+  renderHeader: function () {
+    var closeButton;
+    if (this.props.closeButton) {
+      closeButton = (
+          React.DOM.button( {type:"button", className:"close", 'aria-hidden':"true", onClick:this.props.onRequestHide}, "×")
+        );
+    }
+
+    return (
+      React.DOM.div( {className:"modal-header"}, 
+        closeButton,
+        this.renderTitle()
+      )
+    );
+  },
+
+  renderTitle: function () {
+    return (
+      React.isValidComponent(this.props.title) ?
+        this.props.title : React.DOM.h4( {className:"modal-title"}, this.props.title)
+    );
+  },
+
+  componentDidMount: function () {
+    this._onDocumentKeyupListener =
+      EventListener.listen(document, 'keyup', this.handleDocumentKeyUp);
+  },
+
+  componentWillUnmount: function () {
+    this._onDocumentKeyupListener.remove();
+  },
+
+  handleBackdropClick: function (e) {
+    if (e.target !== e.currentTarget) {
+      return;
+    }
+
+    this.props.onRequestHide();
+  },
+
+  handleDocumentKeyUp: function (e) {
+    if (this.props.keyboard && e.keyCode === 27) {
+      this.props.onRequestHide();
+    }
+  }
+});
+
+module.exports = Modal;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./FadeMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/FadeMixin.js","./utils/EventListener":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/EventListener.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ModalTrigger.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var OverlayMixin = require('./OverlayMixin');
+var cloneWithProps = require('./utils/cloneWithProps');
+var createChainedFunction = require('./utils/createChainedFunction');
+
+var ModalTrigger = React.createClass({displayName: 'ModalTrigger',
+  mixins: [OverlayMixin],
+
+  propTypes: {
+    modal: React.PropTypes.renderable.isRequired
+  },
+
+  getInitialState: function () {
+    return {
+      isOverlayShown: false
+    };
+  },
+
+  show: function () {
+    this.setState({
+      isOverlayShown: true
+    });
+  },
+
+  hide: function () {
+    this.setState({
+      isOverlayShown: false
+    });
+  },
+
+  toggle: function () {
+    this.setState({
+      isOverlayShown: !this.state.isOverlayShown
+    });
+  },
+
+  renderOverlay: function () {
+    if (!this.state.isOverlayShown) {
+      return React.DOM.span(null );
+    }
+
+    return cloneWithProps(
+      this.props.modal,
+      {
+        onRequestHide: this.hide
+      }
+    );
+  },
+
+  render: function () {
+    var child = React.Children.only(this.props.children);
+    return cloneWithProps(
+      child,
+      {
+        onClick: createChainedFunction(child.props.onClick, this.toggle)
+      }
+    );
+  }
+});
+
+module.exports = ModalTrigger;
+},{"./OverlayMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayMixin.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Nav.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var BootstrapMixin = require('./BootstrapMixin');
+var CollapsableMixin = require('./CollapsableMixin');
+var classSet = require('./utils/classSet');
+var domUtils = require('./utils/domUtils');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var createChainedFunction = require('./utils/createChainedFunction');
+
+
+var Nav = React.createClass({displayName: 'Nav',
+  mixins: [BootstrapMixin, CollapsableMixin],
+
+  propTypes: {
+    bsStyle: React.PropTypes.oneOf(['tabs','pills']),
+    stacked: React.PropTypes.bool,
+    justified: React.PropTypes.bool,
+    onSelect: React.PropTypes.func,
+    collapsable: React.PropTypes.bool,
+    expanded: React.PropTypes.bool,
+    navbar: React.PropTypes.bool
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'nav'
+    };
+  },
+
+  getCollapsableDOMNode: function () {
+    return this.getDOMNode();
+  },
+
+  getCollapsableDimensionValue: function () {
+    var node = this.refs.ul.getDOMNode(),
+        height = node.offsetHeight,
+        computedStyles = domUtils.getComputedStyles(node);
+
+    return height + parseInt(computedStyles.marginTop, 10) + parseInt(computedStyles.marginBottom, 10);
+  },
+
+  render: function () {
+    var classes = this.props.collapsable ? this.getCollapsableClassSet() : {};
+
+    classes['navbar-collapse'] = this.props.collapsable;
+
+    if (this.props.navbar && !this.props.collapsable) {
+      return this.transferPropsTo(this.renderUl());
+    }
+
+    return this.transferPropsTo(
+      React.DOM.nav( {className:classSet(classes)}, 
+        this.renderUl()
+      )
+    );
+  },
+
+  renderUl: function () {
+    var classes = this.getBsClassSet();
+
+    classes['nav-stacked'] = this.props.stacked;
+    classes['nav-justified'] = this.props.justified;
+    classes['navbar-nav'] = this.props.navbar;
+    classes['pull-right'] = this.props.pullRight;
+
+    return (
+      React.DOM.ul( {className:classSet(classes), ref:"ul"}, 
+        ValidComponentChildren.map(this.props.children, this.renderNavItem)
+      )
+    );
+  },
+
+  getChildActiveProp: function (child) {
+    if (child.props.active) {
+      return true;
+    }
+    if (this.props.activeKey != null) {
+      if (child.props.key === this.props.activeKey) {
+        return true;
+      }
+    }
+    if (this.props.activeHref != null) {
+      if (child.props.href === this.props.activeHref) {
+        return true;
+      }
+    }
+
+    return child.props.active;
+  },
+
+  renderNavItem: function (child) {
+    return cloneWithProps(
+      child,
+      {
+        active: this.getChildActiveProp(child),
+        activeKey: this.props.activeKey,
+        activeHref: this.props.activeHref,
+        onSelect: createChainedFunction(child.props.onSelect, this.props.onSelect),
+        ref: child.props.ref,
+        key: child.props.key,
+        navItem: true
+      }
+    );
+  }
+});
+
+module.exports = Nav;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./CollapsableMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CollapsableMixin.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","./utils/domUtils":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/domUtils.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/NavItem.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+var NavItem = React.createClass({displayName: 'NavItem',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    onSelect: React.PropTypes.func,
+    active: React.PropTypes.bool,
+    disabled: React.PropTypes.bool,
+    href: React.PropTypes.string,
+    title: React.PropTypes.string
+  },
+
+  getDefaultProps: function () {
+    return {
+      href: '#'
+    };
+  },
+
+  render: function () {
+    var classes = {
+      'active': this.props.active,
+      'disabled': this.props.disabled
+    };
+
+    return this.transferPropsTo(
+      React.DOM.li( {className:classSet(classes)}, 
+        React.DOM.a(
+          {href:this.props.href,
+          title:this.props.title,
+          onClick:this.handleClick,
+          ref:"anchor"}, 
+          this.props.children
+        )
+      )
+    );
+  },
+
+  handleClick: function (e) {
+    if (this.props.onSelect) {
+      e.preventDefault();
+
+      if (!this.props.disabled) {
+        this.props.onSelect(this.props.key,this.props.href);
+      }
+    }
+  }
+});
+
+module.exports = NavItem;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Navbar.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var BootstrapMixin = require('./BootstrapMixin');
+var CustomPropTypes = require('./utils/CustomPropTypes');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var createChainedFunction = require('./utils/createChainedFunction');
+var Nav = require('./Nav');
+
+
+var Navbar = React.createClass({displayName: 'Navbar',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    fixedTop: React.PropTypes.bool,
+    fixedBottom: React.PropTypes.bool,
+    staticTop: React.PropTypes.bool,
+    inverse: React.PropTypes.bool,
+    fluid: React.PropTypes.bool,
+    role: React.PropTypes.string,
+    componentClass: CustomPropTypes.componentClass,
+    brand: React.PropTypes.renderable,
+    toggleButton: React.PropTypes.renderable,
+    onToggle: React.PropTypes.func,
+    navExpanded: React.PropTypes.bool,
+    defaultNavExpanded: React.PropTypes.bool
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'navbar',
+      bsStyle: 'default',
+      role: 'navigation',
+      componentClass: React.DOM.nav
+    };
+  },
+
+  getInitialState: function () {
+    return {
+      navExpanded: this.props.defaultNavExpanded
+    };
+  },
+
+  shouldComponentUpdate: function() {
+    // Defer any updates to this component during the `onSelect` handler.
+    return !this._isChanging;
+  },
+
+  handleToggle: function () {
+    if (this.props.onToggle) {
+      this._isChanging = true;
+      this.props.onToggle();
+      this._isChanging = false;
+    }
+
+    this.setState({
+      navOpen: !this.state.navOpen
+    });
+  },
+
+  isNavOpen: function () {
+    return this.props.navOpen != null ? this.props.navOpen : this.state.navOpen;
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+    var componentClass = this.props.componentClass;
+
+    classes['navbar-fixed-top'] = this.props.fixedTop;
+    classes['navbar-fixed-bottom'] = this.props.fixedBottom;
+    classes['navbar-static-top'] = this.props.staticTop;
+    classes['navbar-inverse'] = this.props.inverse;
+
+    return this.transferPropsTo(
+      componentClass( {className:classSet(classes)}, 
+        React.DOM.div( {className:this.props.fluid ? 'container-fluid' : 'container'}, 
+          (this.props.brand || this.props.toggleButton || this.props.toggleNavKey) ? this.renderHeader() : null,
+          ValidComponentChildren.map(this.props.children, this.renderChild)
+        )
+      )
+    );
+  },
+
+  renderChild: function (child) {
+    return cloneWithProps(child, {
+      navbar: true,
+      collapsable: this.props.toggleNavKey != null && this.props.toggleNavKey === child.props.key,
+      expanded: this.props.toggleNavKey != null && this.props.toggleNavKey === child.props.key && this.isNavOpen(),
+      key: child.props.key,
+      ref: child.props.ref
+    });
+  },
+
+  renderHeader: function () {
+    var brand;
+
+    if (this.props.brand) {
+      brand = React.isValidComponent(this.props.brand) ?
+        cloneWithProps(this.props.brand, {
+          className: 'navbar-brand'
+        }) : React.DOM.span( {className:"navbar-brand"}, this.props.brand);
+    }
+
+    return (
+      React.DOM.div( {className:"navbar-header"}, 
+        brand,
+        (this.props.toggleButton || this.props.toggleNavKey != null) ? this.renderToggleButton() : null
+      )
+    );
+  },
+
+  renderToggleButton: function () {
+    var children;
+
+    if (React.isValidComponent(this.props.toggleButton)) {
+      return cloneWithProps(this.props.toggleButton, {
+        className: 'navbar-toggle',
+        onClick: createChainedFunction(this.handleToggle, this.props.toggleButton.props.onClick)
+      });
+    }
+
+    children = (this.props.toggleButton != null) ?
+      this.props.toggleButton : [
+        React.DOM.span( {className:"sr-only", key:0}, "Toggle navigation"),
+        React.DOM.span( {className:"icon-bar", key:1}),
+        React.DOM.span( {className:"icon-bar", key:2}),
+        React.DOM.span( {className:"icon-bar", key:3})
+    ];
+
+    return (
+      React.DOM.button( {className:"navbar-toggle", type:"button", onClick:this.handleToggle}, 
+        children
+      )
+    );
+  }
+});
+
+module.exports = Navbar;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Nav":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Nav.js","./utils/CustomPropTypes":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayMixin.js":[function(require,module,exports){
+var React = require('react');
+var CustomPropTypes = require('./utils/CustomPropTypes');
+
+module.exports = {
+  propTypes: {
+    container: CustomPropTypes.mountable
+  },
+
+  getDefaultProps: function () {
+    return {
+      container: typeof document !== 'undefined' ? document.body : {
+        // If we are in an environment that doesnt have `document` defined it should be
+        // safe to assume that `componentDidMount` will not run and this will be needed,
+        // just provide enough fake API to pass the propType validation.
+        getDOMNode: function noop() {}
+      }
+    };
+  },
+
+  componentWillUnmount: function () {
+    this._unrenderOverlay();
+    if (this._overlayTarget) {
+      this.getContainerDOMNode()
+        .removeChild(this._overlayTarget);
+      this._overlayTarget = null;
+    }
+  },
+
+  componentDidUpdate: function () {
+    this._renderOverlay();
+  },
+
+  componentDidMount: function () {
+    this._renderOverlay();
+  },
+
+  _mountOverlayTarget: function () {
+    this._overlayTarget = document.createElement('div');
+    this.getContainerDOMNode()
+      .appendChild(this._overlayTarget);
+  },
+
+  _renderOverlay: function () {
+    if (!this._overlayTarget) {
+      this._mountOverlayTarget();
+    }
+
+    // Save reference to help testing
+    this._overlayInstance = React.renderComponent(this.renderOverlay(), this._overlayTarget);
+  },
+
+  _unrenderOverlay: function () {
+    React.unmountComponentAtNode(this._overlayTarget);
+    this._overlayInstance = null;
+  },
+
+  getOverlayDOMNode: function () {
+    if (!this.isMounted()) {
+      throw new Error('getOverlayDOMNode(): A component must be mounted to have a DOM node.');
+    }
+
+    return this._overlayInstance.getDOMNode();
+  },
+
+  getContainerDOMNode: function () {
+    return this.props.container.getDOMNode ?
+      this.props.container.getDOMNode() : this.props.container;
+  }
+};
+
+},{"./utils/CustomPropTypes":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayTrigger.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var OverlayMixin = require('./OverlayMixin');
+var domUtils = require('./utils/domUtils');
+var cloneWithProps = require('./utils/cloneWithProps');
+var createChainedFunction = require('./utils/createChainedFunction');
+var merge = require('./utils/merge');
+
+/**
+ * Check if value one is inside or equal to the of value
+ *
+ * @param {string} one
+ * @param {string|array} of
+ * @returns {boolean}
+ */
+function isOneOf(one, of) {
+  if (Array.isArray(of)) {
+    return of.indexOf(one) >= 0;
+  }
+  return one === of;
+}
+
+var OverlayTrigger = React.createClass({displayName: 'OverlayTrigger',
+  mixins: [OverlayMixin],
+
+  propTypes: {
+    trigger: React.PropTypes.oneOfType([
+      React.PropTypes.oneOf(['manual', 'click', 'hover', 'focus']),
+      React.PropTypes.arrayOf(React.PropTypes.oneOf(['click', 'hover', 'focus']))
+    ]),
+    placement: React.PropTypes.oneOf(['top','right', 'bottom', 'left']),
+    delay: React.PropTypes.number,
+    delayShow: React.PropTypes.number,
+    delayHide: React.PropTypes.number,
+    defaultOverlayShown: React.PropTypes.bool,
+    overlay: React.PropTypes.renderable.isRequired
+  },
+
+  getDefaultProps: function () {
+    return {
+      placement: 'right',
+      trigger: ['hover', 'focus']
+    };
+  },
+
+  getInitialState: function () {
+    return {
+      isOverlayShown: this.props.defaultOverlayShown == null ?
+        false : this.props.defaultOverlayShown,
+      overlayLeft: null,
+      overlayTop: null
+    };
+  },
+
+  show: function () {
+    this.setState({
+      isOverlayShown: true
+    }, function() {
+      this.updateOverlayPosition();
+    });
+  },
+
+  hide: function () {
+    this.setState({
+      isOverlayShown: false
+    });
+  },
+
+  toggle: function () {
+    this.state.isOverlayShown ?
+      this.hide() : this.show();
+  },
+
+  renderOverlay: function () {
+    if (!this.state.isOverlayShown) {
+      return React.DOM.span(null );
+    }
+
+    return cloneWithProps(
+      this.props.overlay,
+      {
+        onRequestHide: this.hide,
+        placement: this.props.placement,
+        positionLeft: this.state.overlayLeft,
+        positionTop: this.state.overlayTop
+      }
+    );
+  },
+
+  render: function () {
+    var props = {};
+
+    if (isOneOf('click', this.props.trigger)) {
+      props.onClick = createChainedFunction(this.toggle, this.props.onClick);
+    }
+
+    if (isOneOf('hover', this.props.trigger)) {
+      props.onMouseOver = createChainedFunction(this.handleDelayedShow, this.props.onMouseOver);
+      props.onMouseOut = createChainedFunction(this.handleDelayedHide, this.props.onMouseOut);
+    }
+
+    if (isOneOf('focus', this.props.trigger)) {
+      props.onFocus = createChainedFunction(this.handleDelayedShow, this.props.onFocus);
+      props.onBlur = createChainedFunction(this.handleDelayedHide, this.props.onBlur);
+    }
+
+    return cloneWithProps(
+      React.Children.only(this.props.children),
+      props
+    );
+  },
+
+  componentWillUnmount: function() {
+    clearTimeout(this._hoverDelay);
+  },
+
+  handleDelayedShow: function () {
+    if (this._hoverDelay != null) {
+      clearTimeout(this._hoverDelay);
+      this._hoverDelay = null;
+      return;
+    }
+
+    var delay = this.props.delayShow != null ?
+      this.props.delayShow : this.props.delay;
+
+    if (!delay) {
+      this.show();
+      return;
+    }
+
+    this._hoverDelay = setTimeout(function() {
+      this._hoverDelay = null;
+      this.show();
+    }.bind(this), delay);
+  },
+
+  handleDelayedHide: function () {
+    if (this._hoverDelay != null) {
+      clearTimeout(this._hoverDelay);
+      this._hoverDelay = null;
+      return;
+    }
+
+    var delay = this.props.delayHide != null ?
+      this.props.delayHide : this.props.delay;
+
+    if (!delay) {
+      this.hide();
+      return;
+    }
+
+    this._hoverDelay = setTimeout(function() {
+      this._hoverDelay = null;
+      this.hide();
+    }.bind(this), delay);
+  },
+
+  updateOverlayPosition: function () {
+    if (!this.isMounted()) {
+      return;
+    }
+
+    var pos = this.calcOverlayPosition();
+
+    this.setState({
+      overlayLeft: pos.left,
+      overlayTop: pos.top
+    });
+  },
+
+  calcOverlayPosition: function () {
+    var childOffset = this.getPosition();
+
+    var overlayNode = this.getOverlayDOMNode();
+    var overlayHeight = overlayNode.offsetHeight;
+    var overlayWidth = overlayNode.offsetWidth;
+
+    switch (this.props.placement) {
+      case 'right':
+        return {
+          top: childOffset.top + childOffset.height / 2 - overlayHeight / 2,
+          left: childOffset.left + childOffset.width
+        };
+      case 'left':
+        return {
+          top: childOffset.top + childOffset.height / 2 - overlayHeight / 2,
+          left: childOffset.left - overlayWidth
+        };
+      case 'top':
+        return {
+          top: childOffset.top - overlayHeight,
+          left: childOffset.left + childOffset.width / 2 - overlayWidth / 2
+        };
+      case 'bottom':
+        return {
+          top: childOffset.top + childOffset.height,
+          left: childOffset.left + childOffset.width / 2 - overlayWidth / 2
+        };
+      default:
+        throw new Error('calcOverlayPosition(): No such placement of "' + this.props.placement + '" found.');
+    }
+  },
+
+  getPosition: function () {
+    var node = this.getDOMNode();
+    var container = this.getContainerDOMNode();
+
+    var offset = container.tagName == 'BODY' ?
+      domUtils.getOffset(node) : domUtils.getPosition(node, container);
+
+    return merge(offset, {
+      height: node.offsetHeight,
+      width: node.offsetWidth
+    });
+  }
+});
+
+module.exports = OverlayTrigger;
+},{"./OverlayMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayMixin.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","./utils/domUtils":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/domUtils.js","./utils/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/merge.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PageHeader.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+
+var PageHeader = React.createClass({displayName: 'PageHeader',
+
+  render: function () {
+    return this.transferPropsTo(
+      React.DOM.div( {className:"page-header"}, 
+        React.DOM.h1(null, this.props.children)
+      )
+    );
+  }
+});
+
+module.exports = PageHeader;
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PageItem.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+
+var PageItem = React.createClass({displayName: 'PageItem',
+
+  propTypes: {
+    disabled: React.PropTypes.bool,
+    previous: React.PropTypes.bool,
+    next: React.PropTypes.bool,
+    onSelect: React.PropTypes.func
+  },
+
+  getDefaultProps: function () {
+    return {
+      href: '#'
+    };
+  },
+
+  render: function () {
+    var classes = {
+      'disabled': this.props.disabled,
+      'previous': this.props.previous,
+      'next': this.props.next
+    };
+
+    return this.transferPropsTo(
+      React.DOM.li(
+        {className:classSet(classes)}, 
+        React.DOM.a(
+          {href:this.props.href,
+          title:this.props.title,
+          onClick:this.handleSelect,
+          ref:"anchor"}, 
+          this.props.children
+        )
+      )
+    );
+  },
+
+  handleSelect: function (e) {
+    if (this.props.onSelect) {
+      e.preventDefault();
+
+      if (!this.props.disabled) {
+        this.props.onSelect(this.props.key, this.props.href);
+      }
+    }
+  }
+});
+
+module.exports = PageItem;
+},{"./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Pager.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var createChainedFunction = require('./utils/createChainedFunction');
+
+var Pager = React.createClass({displayName: 'Pager',
+
+  propTypes: {
+    onSelect: React.PropTypes.func
+  },
+
+  render: function () {
+    return this.transferPropsTo(
+      React.DOM.ul(
+        {className:"pager"}, 
+        ValidComponentChildren.map(this.props.children, this.renderPageItem)
+      )
+    );
+  },
+
+  renderPageItem: function (child) {
+    return cloneWithProps(
+      child,
+      {
+        onSelect: createChainedFunction(child.props.onSelect, this.props.onSelect),
+        ref: child.props.ref,
+        key: child.props.key
+      }
+    );
+  }
+});
+
+module.exports = Pager;
+},{"./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Panel.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var BootstrapMixin = require('./BootstrapMixin');
+var CollapsableMixin = require('./CollapsableMixin');
+
+var Panel = React.createClass({displayName: 'Panel',
+  mixins: [BootstrapMixin, CollapsableMixin],
+
+  propTypes: {
+    header: React.PropTypes.renderable,
+    footer: React.PropTypes.renderable,
+    onClick: React.PropTypes.func
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'panel',
+      bsStyle: 'default'
+    };
+  },
+
+  handleSelect: function (e) {
+    if (this.props.onSelect) {
+      this._isChanging = true;
+      this.props.onSelect(this.props.key);
+      this._isChanging = false;
+    }
+
+    e.preventDefault();
+
+    this.setState({
+      expanded: !this.state.expanded
+    });
+  },
+
+  shouldComponentUpdate: function () {
+    return !this._isChanging;
+  },
+
+  getCollapsableDimensionValue: function () {
+    return this.refs.body.getDOMNode().offsetHeight;
+  },
+
+  getCollapsableDOMNode: function () {
+    if (!this.isMounted() || !this.refs || !this.refs.panel) {
+      return null;
+    }
+
+    return this.refs.panel.getDOMNode();
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+    classes['panel'] = true;
+
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(classes), id:this.props.collapsable ? null : this.props.id}, 
+        this.renderHeading(),
+        this.props.collapsable ? this.renderCollapsableBody() : this.renderBody(),
+        this.renderFooter()
+      )
+    );
+  },
+
+  renderCollapsableBody: function () {
+    return (
+      React.DOM.div( {className:classSet(this.getCollapsableClassSet('panel-collapse')), id:this.props.id, ref:"panel"}, 
+        this.renderBody()
+      )
+    );
+  },
+
+  renderBody: function () {
+    return (
+      React.DOM.div( {className:"panel-body", ref:"body"}, 
+        this.props.children
+      )
+    );
+  },
+
+  renderHeading: function () {
+    var header = this.props.header;
+
+    if (!header) {
+      return null;
+    }
+
+    if (!React.isValidComponent(header) || Array.isArray(header)) {
+      header = this.props.collapsable ?
+        this.renderCollapsableTitle(header) : header;
+    } else if (this.props.collapsable) {
+      header = cloneWithProps(header, {
+        className: 'panel-title',
+        children: this.renderAnchor(header.props.children)
+      });
+    } else {
+      header = cloneWithProps(header, {
+        className: 'panel-title'
+      });
+    }
+
+    return (
+      React.DOM.div( {className:"panel-heading"}, 
+        header
+      )
+    );
+  },
+
+  renderAnchor: function (header) {
+    return (
+      React.DOM.a(
+        {href:'#' + (this.props.id || ''),
+        className:this.isExpanded() ? null : 'collapsed',
+        onClick:this.handleSelect}, 
+        header
+      )
+    );
+  },
+
+  renderCollapsableTitle: function (header) {
+    return (
+      React.DOM.h4( {className:"panel-title"}, 
+        this.renderAnchor(header)
+      )
+    );
+  },
+
+  renderFooter: function () {
+    if (!this.props.footer) {
+      return null;
+    }
+
+    return (
+      React.DOM.div( {className:"panel-footer"}, 
+        this.props.footer
+      )
+    );
+  }
+});
+
+module.exports = Panel;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./CollapsableMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CollapsableMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PanelGroup.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var BootstrapMixin = require('./BootstrapMixin');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+var PanelGroup = React.createClass({displayName: 'PanelGroup',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    collapsable: React.PropTypes.bool,
+    activeKey: React.PropTypes.any,
+    defaultActiveKey: React.PropTypes.any,
+    onSelect: React.PropTypes.func
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'panel-group'
+    };
+  },
+
+  getInitialState: function () {
+    var defaultActiveKey = this.props.defaultActiveKey;
+
+    return {
+      activeKey: defaultActiveKey
+    };
+  },
+
+  render: function () {
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(this.getBsClassSet())}, 
+        ValidComponentChildren.map(this.props.children, this.renderPanel)
+      )
+    );
+  },
+
+  renderPanel: function (child) {
+    var activeKey =
+      this.props.activeKey != null ? this.props.activeKey : this.state.activeKey;
+
+    var props = {
+      bsStyle: child.props.bsStyle || this.props.bsStyle,
+      key: child.props.key,
+      ref: child.props.ref
+    };
+
+    if (this.props.accordion) {
+      props.collapsable = true;
+      props.expanded = (child.props.key === activeKey);
+      props.onSelect = this.handleSelect;
+    }
+
+    return cloneWithProps(
+      child,
+      props
+    );
+  },
+
+  shouldComponentUpdate: function() {
+    // Defer any updates to this component during the `onSelect` handler.
+    return !this._isChanging;
+  },
+
+  handleSelect: function (key) {
+    if (this.props.onSelect) {
+      this._isChanging = true;
+      this.props.onSelect(key);
+      this._isChanging = false;
+    }
+
+    if (this.state.activeKey === key) {
+      key = null;
+    }
+
+    this.setState({
+      activeKey: key
+    });
+  }
+});
+
+module.exports = PanelGroup;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Popover.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+
+var Popover = React.createClass({displayName: 'Popover',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    placement: React.PropTypes.oneOf(['top','right', 'bottom', 'left']),
+    positionLeft: React.PropTypes.number,
+    positionTop: React.PropTypes.number,
+    arrowOffsetLeft: React.PropTypes.number,
+    arrowOffsetTop: React.PropTypes.number,
+    title: React.PropTypes.renderable
+  },
+
+  getDefaultProps: function () {
+    return {
+      placement: 'right'
+    };
+  },
+
+  render: function () {
+    var classes = {};
+    classes['popover'] = true;
+    classes[this.props.placement] = true;
+    classes['in'] = this.props.positionLeft != null || this.props.positionTop != null;
+
+    var style = {};
+    style['left'] = this.props.positionLeft;
+    style['top'] = this.props.positionTop;
+    style['display'] = 'block';
+
+    var arrowStyle = {};
+    arrowStyle['left'] = this.props.arrowOffsetLeft;
+    arrowStyle['top'] = this.props.arrowOffsetTop;
+
+    return (
+      React.DOM.div( {className:classSet(classes), style:style}, 
+        React.DOM.div( {className:"arrow", style:arrowStyle} ),
+        this.props.title ? this.renderTitle() : null,
+        React.DOM.div( {className:"popover-content"}, 
+            this.props.children
+        )
+      )
+    );
+  },
+
+  renderTitle: function() {
+    return (
+      React.DOM.h3( {className:"popover-title"}, this.props.title)
+    );
+  }
+});
+
+module.exports = Popover;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ProgressBar.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var Interpolate = require('./Interpolate');
+var BootstrapMixin = require('./BootstrapMixin');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+
+
+var ProgressBar = React.createClass({displayName: 'ProgressBar',
+  propTypes: {
+    min: React.PropTypes.number,
+    now: React.PropTypes.number,
+    max: React.PropTypes.number,
+    label: React.PropTypes.renderable,
+    srOnly: React.PropTypes.bool,
+    striped: React.PropTypes.bool,
+    active: React.PropTypes.bool
+  },
+
+  mixins: [BootstrapMixin],
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'progress-bar',
+      min: 0,
+      max: 100
+    };
+  },
+
+  getPercentage: function (now, min, max) {
+    return Math.ceil((now - min) / (max - min) * 100);
+  },
+
+  render: function () {
+    var classes = {
+        progress: true
+      };
+
+    if (this.props.active) {
+      classes['progress-striped'] = true;
+      classes['active'] = true;
+    } else if (this.props.striped) {
+      classes['progress-striped'] = true;
+    }
+
+    if (!ValidComponentChildren.hasValidComponent(this.props.children)) {
+      if (!this.props.isChild) {
+        return this.transferPropsTo(
+          React.DOM.div( {className:classSet(classes)}, 
+            this.renderProgressBar()
+          )
+        );
+      } else {
+        return this.transferPropsTo(
+          this.renderProgressBar()
+        );
+      }
+    } else {
+      return this.transferPropsTo(
+        React.DOM.div( {className:classSet(classes)}, 
+          ValidComponentChildren.map(this.props.children, this.renderChildBar)
+        )
+      );
+    }
+  },
+
+  renderChildBar: function (child) {
+    return cloneWithProps(child, {
+      isChild: true,
+      key: child.props.key,
+      ref: child.props.ref
+    });
+  },
+
+  renderProgressBar: function () {
+    var percentage = this.getPercentage(
+        this.props.now,
+        this.props.min,
+        this.props.max
+      );
+
+    var label;
+
+    if (typeof this.props.label === "string") {
+      label = this.renderLabel(percentage);
+    } else if (this.props.label) {
+      label = this.props.label;
+    }
+
+    if (this.props.srOnly) {
+      label = this.renderScreenReaderOnlyLabel(label);
+    }
+
+    return (
+      React.DOM.div( {className:classSet(this.getBsClassSet()), role:"progressbar",
+        style:{width: percentage + '%'},
+        'aria-valuenow':this.props.now,
+        'aria-valuemin':this.props.min,
+        'aria-valuemax':this.props.max}, 
+        label
+      )
+    );
+  },
+
+  renderLabel: function (percentage) {
+    var InterpolateClass = this.props.interpolateClass || Interpolate;
+
+    return (
+      InterpolateClass(
+        {now:this.props.now,
+        min:this.props.min,
+        max:this.props.max,
+        percent:percentage,
+        bsStyle:this.props.bsStyle}, 
+        this.props.label
+      )
+    );
+  },
+
+  renderScreenReaderOnlyLabel: function (label) {
+    return (
+      React.DOM.span( {className:"sr-only"}, 
+        label
+      )
+    );
+  }
+});
+
+module.exports = ProgressBar;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Interpolate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Interpolate.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Row.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var CustomPropTypes = require('./utils/CustomPropTypes');
+
+
+var Row = React.createClass({displayName: 'Row',
+  propTypes: {
+    componentClass: CustomPropTypes.componentClass
+  },
+
+  getDefaultProps: function () {
+    return {
+      componentClass: React.DOM.div
+    };
+  },
+
+  render: function () {
+    var componentClass = this.props.componentClass;
+
+    return this.transferPropsTo(
+      componentClass( {className:"row"}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Row;
+},{"./utils/CustomPropTypes":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/SplitButton.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+var DropdownStateMixin = require('./DropdownStateMixin');
+var Button = require('./Button');
+var ButtonGroup = require('./ButtonGroup');
+var DropdownMenu = require('./DropdownMenu');
+
+var SplitButton = React.createClass({displayName: 'SplitButton',
+  mixins: [BootstrapMixin, DropdownStateMixin],
+
+  propTypes: {
+    pullRight:     React.PropTypes.bool,
+    title:         React.PropTypes.renderable,
+    href:          React.PropTypes.string,
+    dropdownTitle: React.PropTypes.renderable,
+    onClick:       React.PropTypes.func,
+    onSelect:      React.PropTypes.func,
+    disabled:      React.PropTypes.bool
+  },
+
+  getDefaultProps: function () {
+    return {
+      dropdownTitle: 'Toggle dropdown'
+    };
+  },
+
+  render: function () {
+    var groupClasses = {
+        'open': this.state.open,
+        'dropup': this.props.dropup
+      };
+
+    var button = this.transferPropsTo(
+      Button(
+        {ref:"button",
+        onClick:this.handleButtonClick,
+        title:null,
+        id:null}, 
+        this.props.title
+      )
+    );
+
+    var dropdownButton = this.transferPropsTo(
+      Button(
+        {ref:"dropdownButton",
+        className:"dropdown-toggle",
+        onClick:this.handleDropdownClick,
+        title:null,
+        id:null}, 
+        React.DOM.span( {className:"sr-only"}, this.props.dropdownTitle),
+        React.DOM.span( {className:"caret"} )
+      )
+    );
+
+    return (
+      ButtonGroup(
+        {bsSize:this.props.bsSize,
+        className:classSet(groupClasses),
+        id:this.props.id}, 
+        button,
+        dropdownButton,
+        DropdownMenu(
+          {ref:"menu",
+          onSelect:this.handleOptionSelect,
+          'aria-labelledby':this.props.id,
+          pullRight:this.props.pullRight}, 
+          this.props.children
+        )
+      )
+    );
+  },
+
+  handleButtonClick: function (e) {
+    if (this.state.open) {
+      this.setDropdownState(false);
+    }
+
+    if (this.props.onClick) {
+      this.props.onClick(e);
+    }
+  },
+
+  handleDropdownClick: function (e) {
+    e.preventDefault();
+
+    this.setDropdownState(!this.state.open);
+  },
+
+  handleOptionSelect: function (key) {
+    if (this.props.onSelect) {
+      this.props.onSelect(key);
+    }
+
+    this.setDropdownState(false);
+  }
+});
+
+module.exports = SplitButton;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Button":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js","./ButtonGroup":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonGroup.js","./DropdownMenu":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownMenu.js","./DropdownStateMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownStateMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/SubNav.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var createChainedFunction = require('./utils/createChainedFunction');
+var BootstrapMixin = require('./BootstrapMixin');
+
+
+var SubNav = React.createClass({displayName: 'SubNav',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    onSelect: React.PropTypes.func,
+    active: React.PropTypes.bool,
+    disabled: React.PropTypes.bool,
+    href: React.PropTypes.string,
+    title: React.PropTypes.string,
+    text: React.PropTypes.renderable
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'nav'
+    };
+  },
+
+  handleClick: function (e) {
+    if (this.props.onSelect) {
+      e.preventDefault();
+
+      if (!this.props.disabled) {
+        this.props.onSelect(this.props.key, this.props.href);
+      }
+    }
+  },
+
+  isActive: function () {
+    return this.isChildActive(this);
+  },
+
+  isChildActive: function (child) {
+    if (child.props.active) {
+      return true;
+    }
+
+    if (this.props.activeKey != null && this.props.activeKey === child.props.key) {
+      return true;
+    }
+
+    if (this.props.activeHref != null && this.props.activeHref === child.props.href) {
+      return true;
+    }
+
+    if (child.props.children) {
+      var isActive = false;
+
+      ValidComponentChildren.forEach(
+        child.props.children,
+        function (child) {
+          if (this.isChildActive(child)) {
+            isActive = true;
+          }
+        },
+        this
+      );
+
+      return isActive;
+    }
+
+    return false;
+  },
+
+  getChildActiveProp: function (child) {
+    if (child.props.active) {
+      return true;
+    }
+    if (this.props.activeKey != null) {
+      if (child.props.key === this.props.activeKey) {
+        return true;
+      }
+    }
+    if (this.props.activeHref != null) {
+      if (child.props.href === this.props.activeHref) {
+        return true;
+      }
+    }
+
+    return child.props.active;
+  },
+
+  render: function () {
+    var classes = {
+      'active': this.isActive(),
+      'disabled': this.props.disabled
+    };
+
+    return this.transferPropsTo(
+      React.DOM.li( {className:classSet(classes)}, 
+        React.DOM.a(
+          {href:this.props.href,
+          title:this.props.title,
+          onClick:this.handleClick,
+          ref:"anchor"}, 
+          this.props.text
+        ),
+        React.DOM.ul( {className:"nav"}, 
+          ValidComponentChildren.map(this.props.children, this.renderNavItem)
+        )
+      )
+    );
+  },
+
+  renderNavItem: function (child) {
+    return cloneWithProps(
+      child,
+      {
+        active: this.getChildActiveProp(child),
+        onSelect: createChainedFunction(child.props.onSelect, this.props.onSelect),
+        ref: child.props.ref,
+        key: child.props.key
+      }
+    );
+  }
+});
+
+module.exports = SubNav;
+
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","./utils/createChainedFunction":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/TabPane.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var TransitionEvents = require('./utils/TransitionEvents');
+
+var TabPane = React.createClass({displayName: 'TabPane',
+  getDefaultProps: function () {
+    return {
+      animation: true
+    };
+  },
+
+  getInitialState: function () {
+    return {
+      animateIn: false,
+      animateOut: false
+    };
+  },
+
+  componentWillReceiveProps: function (nextProps) {
+    if (this.props.animation) {
+      if (!this.state.animateIn && nextProps.active && !this.props.active) {
+        this.setState({
+          animateIn: true
+        });
+      } else if (!this.state.animateOut && !nextProps.active && this.props.active) {
+        this.setState({
+          animateOut: true
+        });
+      }
+    }
+  },
+
+  componentDidUpdate: function () {
+    if (this.state.animateIn) {
+      setTimeout(this.startAnimateIn, 0);
+    }
+    if (this.state.animateOut) {
+      TransitionEvents.addEndEventListener(
+        this.getDOMNode(),
+        this.stopAnimateOut
+      );
+    }
+  },
+
+  startAnimateIn: function () {
+    if (this.isMounted()) {
+      this.setState({
+        animateIn: false
+      });
+    }
+  },
+
+  stopAnimateOut: function () {
+    if (this.isMounted()) {
+      this.setState({
+        animateOut: false
+      });
+
+      if (typeof this.props.onAnimateOutEnd === 'function') {
+        this.props.onAnimateOutEnd();
+      }
+    }
+  },
+
+  render: function () {
+    var classes = {
+      'tab-pane': true,
+      'fade': true,
+      'active': this.props.active || this.state.animateOut,
+      'in': this.props.active && !this.state.animateIn
+    };
+
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = TabPane;
+},{"./utils/TransitionEvents":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/TransitionEvents.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/TabbedArea.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var BootstrapMixin = require('./BootstrapMixin');
+var cloneWithProps = require('./utils/cloneWithProps');
+var ValidComponentChildren = require('./utils/ValidComponentChildren');
+var Nav = require('./Nav');
+var NavItem = require('./NavItem');
+
+function getDefaultActiveKeyFromChildren(children) {
+  var defaultActiveKey;
+
+  ValidComponentChildren.forEach(children, function(child) {
+    if (defaultActiveKey == null) {
+      defaultActiveKey = child.props.key;
+    }
+  });
+
+  return defaultActiveKey;
+}
+
+var TabbedArea = React.createClass({displayName: 'TabbedArea',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    bsStyle: React.PropTypes.oneOf(['tabs','pills']),
+    animation: React.PropTypes.bool,
+    onSelect: React.PropTypes.func
+  },
+
+  getDefaultProps: function () {
+    return {
+      bsStyle: "tabs",
+      animation: true
+    };
+  },
+
+  getInitialState: function () {
+    var defaultActiveKey = this.props.defaultActiveKey != null ?
+      this.props.defaultActiveKey : getDefaultActiveKeyFromChildren(this.props.children);
+
+    // TODO: In __DEV__ mode warn via `console.warn` if no `defaultActiveKey` has
+    // been set by this point, invalid children or missing key properties are likely the cause.
+
+    return {
+      activeKey: defaultActiveKey,
+      previousActiveKey: null
+    };
+  },
+
+  componentWillReceiveProps: function (nextProps) {
+    if (nextProps.activeKey != null && nextProps.activeKey !== this.props.activeKey) {
+      this.setState({
+        previousActiveKey: this.props.activeKey
+      });
+    }
+  },
+
+  handlePaneAnimateOutEnd: function () {
+    this.setState({
+      previousActiveKey: null
+    });
+  },
+
+  render: function () {
+    var activeKey =
+      this.props.activeKey != null ? this.props.activeKey : this.state.activeKey;
+
+    function renderTabIfSet(child) {
+      return child.props.tab != null ? this.renderTab(child) : null;
+    }
+
+    var nav = this.transferPropsTo(
+      Nav( {activeKey:activeKey, onSelect:this.handleSelect, ref:"tabs"}, 
+        ValidComponentChildren.map(this.props.children, renderTabIfSet, this)
+      )
+    );
+
+    return (
+      React.DOM.div(null, 
+        nav,
+        React.DOM.div( {id:this.props.id, className:"tab-content", ref:"panes"}, 
+          ValidComponentChildren.map(this.props.children, this.renderPane)
+        )
+      )
+    );
+  },
+
+  getActiveKey: function () {
+    return this.props.activeKey != null ? this.props.activeKey : this.state.activeKey;
+  },
+
+  renderPane: function (child) {
+    var activeKey = this.getActiveKey();
+
+    return cloneWithProps(
+        child,
+        {
+          active: (child.props.key === activeKey &&
+            (this.state.previousActiveKey == null || !this.props.animation)),
+          ref: child.props.ref,
+          key: child.props.key,
+          animation: this.props.animation,
+          onAnimateOutEnd: (this.state.previousActiveKey != null &&
+            child.props.key === this.state.previousActiveKey) ? this.handlePaneAnimateOutEnd: null
+        }
+      );
+  },
+
+  renderTab: function (child) {
+    var key = child.props.key;
+    return (
+      NavItem(
+        {ref:'tab' + key,
+        key:key}, 
+        child.props.tab
+      )
+    );
+  },
+
+  shouldComponentUpdate: function() {
+    // Defer any updates to this component during the `onSelect` handler.
+    return !this._isChanging;
+  },
+
+  handleSelect: function (key) {
+    if (this.props.onSelect) {
+      this._isChanging = true;
+      this.props.onSelect(key);
+      this._isChanging = false;
+    } else if (key !== this.getActiveKey()) {
+      this.setState({
+        activeKey: key,
+        previousActiveKey: this.getActiveKey()
+      });
+    }
+  }
+});
+
+module.exports = TabbedArea;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Nav":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Nav.js","./NavItem":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/NavItem.js","./utils/ValidComponentChildren":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js","./utils/cloneWithProps":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Table.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+
+var Table = React.createClass({displayName: 'Table',
+  propTypes: {
+    striped: React.PropTypes.bool,
+    bordered: React.PropTypes.bool,
+    condensed: React.PropTypes.bool,
+    hover: React.PropTypes.bool,
+    responsive: React.PropTypes.bool
+  },
+
+  render: function () {
+    var classes = {
+      'table': true,
+      'table-striped': this.props.striped,
+      'table-bordered': this.props.bordered,
+      'table-condensed': this.props.condensed,
+      'table-hover': this.props.hover
+    };
+    var table = this.transferPropsTo(
+      React.DOM.table( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+
+    return this.props.responsive ? (
+      React.DOM.div( {className:"table-responsive"}, 
+        table
+      )
+    ) : table;
+  }
+});
+
+module.exports = Table;
+},{"./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Tooltip.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+
+var Tooltip = React.createClass({displayName: 'Tooltip',
+  mixins: [BootstrapMixin],
+
+  propTypes: {
+    placement: React.PropTypes.oneOf(['top','right', 'bottom', 'left']),
+    positionLeft: React.PropTypes.number,
+    positionTop: React.PropTypes.number,
+    arrowOffsetLeft: React.PropTypes.number,
+    arrowOffsetTop: React.PropTypes.number
+  },
+
+  getDefaultProps: function () {
+    return {
+      placement: 'right'
+    };
+  },
+
+  render: function () {
+    var classes = {};
+    classes['tooltip'] = true;
+    classes[this.props.placement] = true;
+    classes['in'] = this.props.positionLeft != null || this.props.positionTop != null;
+
+    var style = {};
+    style['left'] = this.props.positionLeft;
+    style['top'] = this.props.positionTop;
+
+    var arrowStyle = {};
+    arrowStyle['left'] = this.props.arrowOffsetLeft;
+    arrowStyle['top'] = this.props.arrowOffsetTop;
+
+    return (
+        React.DOM.div( {className:classSet(classes), style:style}, 
+          React.DOM.div( {className:"tooltip-arrow", style:arrowStyle} ),
+          React.DOM.div( {className:"tooltip-inner"}, 
+            this.props.children
+          )
+        )
+      );
+  }
+});
+
+module.exports = Tooltip;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Well.js":[function(require,module,exports){
+/** @jsx React.DOM */
+
+var React = require('react');
+var classSet = require('./utils/classSet');
+var BootstrapMixin = require('./BootstrapMixin');
+
+var Well = React.createClass({displayName: 'Well',
+  mixins: [BootstrapMixin],
+
+  getDefaultProps: function () {
+    return {
+      bsClass: 'well'
+    };
+  },
+
+  render: function () {
+    var classes = this.getBsClassSet();
+
+    return this.transferPropsTo(
+      React.DOM.div( {className:classSet(classes)}, 
+        this.props.children
+      )
+    );
+  }
+});
+
+module.exports = Well;
+},{"./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./utils/classSet":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/constants.js":[function(require,module,exports){
+module.exports = {
+  CLASSES: {
+    'alert': 'alert',
+    'button': 'btn',
+    'button-group': 'btn-group',
+    'button-toolbar': 'btn-toolbar',
+    'column': 'col',
+    'input-group': 'input-group',
+    'form': 'form',
+    'glyphicon': 'glyphicon',
+    'label': 'label',
+    'panel': 'panel',
+    'panel-group': 'panel-group',
+    'progress-bar': 'progress-bar',
+    'nav': 'nav',
+    'navbar': 'navbar',
+    'modal': 'modal',
+    'row': 'row',
+    'well': 'well'
+  },
+  STYLES: {
+    'default': 'default',
+    'primary': 'primary',
+    'success': 'success',
+    'info': 'info',
+    'warning': 'warning',
+    'danger': 'danger',
+    'link': 'link',
+    'inline': 'inline',
+    'tabs': 'tabs',
+    'pills': 'pills'
+  },
+  SIZES: {
+    'large': 'lg',
+    'medium': 'md',
+    'small': 'sm',
+    'xsmall': 'xs'
+  },
+  GLYPHS: [
+    'asterisk',
+    'plus',
+    'euro',
+    'minus',
+    'cloud',
+    'envelope',
+    'pencil',
+    'glass',
+    'music',
+    'search',
+    'heart',
+    'star',
+    'star-empty',
+    'user',
+    'film',
+    'th-large',
+    'th',
+    'th-list',
+    'ok',
+    'remove',
+    'zoom-in',
+    'zoom-out',
+    'off',
+    'signal',
+    'cog',
+    'trash',
+    'home',
+    'file',
+    'time',
+    'road',
+    'download-alt',
+    'download',
+    'upload',
+    'inbox',
+    'play-circle',
+    'repeat',
+    'refresh',
+    'list-alt',
+    'lock',
+    'flag',
+    'headphones',
+    'volume-off',
+    'volume-down',
+    'volume-up',
+    'qrcode',
+    'barcode',
+    'tag',
+    'tags',
+    'book',
+    'bookmark',
+    'print',
+    'camera',
+    'font',
+    'bold',
+    'italic',
+    'text-height',
+    'text-width',
+    'align-left',
+    'align-center',
+    'align-right',
+    'align-justify',
+    'list',
+    'indent-left',
+    'indent-right',
+    'facetime-video',
+    'picture',
+    'map-marker',
+    'adjust',
+    'tint',
+    'edit',
+    'share',
+    'check',
+    'move',
+    'step-backward',
+    'fast-backward',
+    'backward',
+    'play',
+    'pause',
+    'stop',
+    'forward',
+    'fast-forward',
+    'step-forward',
+    'eject',
+    'chevron-left',
+    'chevron-right',
+    'plus-sign',
+    'minus-sign',
+    'remove-sign',
+    'ok-sign',
+    'question-sign',
+    'info-sign',
+    'screenshot',
+    'remove-circle',
+    'ok-circle',
+    'ban-circle',
+    'arrow-left',
+    'arrow-right',
+    'arrow-up',
+    'arrow-down',
+    'share-alt',
+    'resize-full',
+    'resize-small',
+    'exclamation-sign',
+    'gift',
+    'leaf',
+    'fire',
+    'eye-open',
+    'eye-close',
+    'warning-sign',
+    'plane',
+    'calendar',
+    'random',
+    'comment',
+    'magnet',
+    'chevron-up',
+    'chevron-down',
+    'retweet',
+    'shopping-cart',
+    'folder-close',
+    'folder-open',
+    'resize-vertical',
+    'resize-horizontal',
+    'hdd',
+    'bullhorn',
+    'bell',
+    'certificate',
+    'thumbs-up',
+    'thumbs-down',
+    'hand-right',
+    'hand-left',
+    'hand-up',
+    'hand-down',
+    'circle-arrow-right',
+    'circle-arrow-left',
+    'circle-arrow-up',
+    'circle-arrow-down',
+    'globe',
+    'wrench',
+    'tasks',
+    'filter',
+    'briefcase',
+    'fullscreen',
+    'dashboard',
+    'paperclip',
+    'heart-empty',
+    'link',
+    'phone',
+    'pushpin',
+    'usd',
+    'gbp',
+    'sort',
+    'sort-by-alphabet',
+    'sort-by-alphabet-alt',
+    'sort-by-order',
+    'sort-by-order-alt',
+    'sort-by-attributes',
+    'sort-by-attributes-alt',
+    'unchecked',
+    'expand',
+    'collapse-down',
+    'collapse-up',
+    'log-in',
+    'flash',
+    'log-out',
+    'new-window',
+    'record',
+    'save',
+    'open',
+    'saved',
+    'import',
+    'export',
+    'send',
+    'floppy-disk',
+    'floppy-saved',
+    'floppy-remove',
+    'floppy-save',
+    'floppy-open',
+    'credit-card',
+    'transfer',
+    'cutlery',
+    'header',
+    'compressed',
+    'earphone',
+    'phone-alt',
+    'tower',
+    'stats',
+    'sd-video',
+    'hd-video',
+    'subtitles',
+    'sound-stereo',
+    'sound-dolby',
+    'sound-5-1',
+    'sound-6-1',
+    'sound-7-1',
+    'copyright-mark',
+    'registration-mark',
+    'cloud-download',
+    'cloud-upload',
+    'tree-conifer',
+    'tree-deciduous'
+  ]
+};
+
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/main.js":[function(require,module,exports){
+module.exports = {
+  Accordion: require('./Accordion'),
+  Affix: require('./Affix'),
+  AffixMixin: require('./AffixMixin'),
+  Alert: require('./Alert'),
+  BootstrapMixin: require('./BootstrapMixin'),
+  Badge: require('./Badge'),
+  Button: require('./Button'),
+  ButtonGroup: require('./ButtonGroup'),
+  ButtonToolbar: require('./ButtonToolbar'),
+  Carousel: require('./Carousel'),
+  CarouselItem: require('./CarouselItem'),
+  Col: require('./Col'),
+  CollapsableMixin: require('./CollapsableMixin'),
+  DropdownButton: require('./DropdownButton'),
+  DropdownMenu: require('./DropdownMenu'),
+  DropdownStateMixin: require('./DropdownStateMixin'),
+  FadeMixin: require('./FadeMixin'),
+  Glyphicon: require('./Glyphicon'),
+  Grid: require('./Grid'),
+  Input: require('./Input'),
+  Interpolate: require('./Interpolate'),
+  Jumbotron: require('./Jumbotron'),
+  Label: require('./Label'),
+  MenuItem: require('./MenuItem'),
+  Modal: require('./Modal'),
+  Nav: require('./Nav'),
+  Navbar: require('./Navbar'),
+  NavItem: require('./NavItem'),
+  ModalTrigger: require('./ModalTrigger'),
+  OverlayTrigger: require('./OverlayTrigger'),
+  OverlayMixin: require('./OverlayMixin'),
+  PageHeader: require('./PageHeader'),
+  Panel: require('./Panel'),
+  PanelGroup: require('./PanelGroup'),
+  PageItem: require('./PageItem'),
+  Pager: require('./Pager'),
+  Popover: require('./Popover'),
+  ProgressBar: require('./ProgressBar'),
+  Row: require('./Row'),
+  SplitButton: require('./SplitButton'),
+  SubNav: require('./SubNav'),
+  TabbedArea: require('./TabbedArea'),
+  Table: require('./Table'),
+  TabPane: require('./TabPane'),
+  Tooltip: require('./Tooltip'),
+  Well: require('./Well')
+};
+},{"./Accordion":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Accordion.js","./Affix":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Affix.js","./AffixMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/AffixMixin.js","./Alert":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Alert.js","./Badge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Badge.js","./BootstrapMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/BootstrapMixin.js","./Button":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Button.js","./ButtonGroup":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonGroup.js","./ButtonToolbar":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ButtonToolbar.js","./Carousel":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Carousel.js","./CarouselItem":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CarouselItem.js","./Col":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Col.js","./CollapsableMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/CollapsableMixin.js","./DropdownButton":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownButton.js","./DropdownMenu":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownMenu.js","./DropdownStateMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/DropdownStateMixin.js","./FadeMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/FadeMixin.js","./Glyphicon":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Glyphicon.js","./Grid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Grid.js","./Input":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Input.js","./Interpolate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Interpolate.js","./Jumbotron":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Jumbotron.js","./Label":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Label.js","./MenuItem":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/MenuItem.js","./Modal":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Modal.js","./ModalTrigger":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ModalTrigger.js","./Nav":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Nav.js","./NavItem":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/NavItem.js","./Navbar":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Navbar.js","./OverlayMixin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayMixin.js","./OverlayTrigger":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/OverlayTrigger.js","./PageHeader":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PageHeader.js","./PageItem":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PageItem.js","./Pager":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Pager.js","./Panel":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Panel.js","./PanelGroup":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/PanelGroup.js","./Popover":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Popover.js","./ProgressBar":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/ProgressBar.js","./Row":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Row.js","./SplitButton":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/SplitButton.js","./SubNav":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/SubNav.js","./TabPane":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/TabPane.js","./TabbedArea":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/TabbedArea.js","./Table":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Table.js","./Tooltip":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Tooltip.js","./Well":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/Well.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/CustomPropTypes.js":[function(require,module,exports){
+var React = require('react');
+
+var CustomPropTypes = {
+  /**
+   * Checks whether a prop is a valid React class
+   *
+   * @param props
+   * @param propName
+   * @param componentName
+   * @returns {Error|undefined}
+   */
+  componentClass: function (props, propName, componentName) {
+    if (!React.isValidClass(props[propName])) {
+      return new Error('Invalid `' + propName + '` prop in `' + componentName + '`, expected be ' +
+        'a valid React class');
+    }
+  },
+
+  /**
+   * Checks whether a prop provides a DOM element
+   *
+   * The element can be provided in two forms:
+   * - Directly passed
+   * - Or passed an object which has a `getDOMNode` method which will return the required DOM element
+   *
+   * @param props
+   * @param propName
+   * @param componentName
+   * @returns {Error|undefined}
+   */
+  mountable: function (props, propName, componentName) {
+    if (typeof props[propName] !== 'object' ||
+      typeof props[propName].getDOMNode !== 'function' && props[propName].nodeType !== 1) {
+      return new Error('Invalid `' + propName + '` prop in `' + componentName + '`, expected be ' +
+        'a DOM element or an object that has a `getDOMNode` method');
+    }
+  }
+};
+
+module.exports = CustomPropTypes;
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/EventListener.js":[function(require,module,exports){
+/**
+ * React EventListener.listen
+ *
+ * Copyright 2013-2014 Facebook, Inc.
+ * @licence https://github.com/facebook/react/blob/0.11-stable/LICENSE
+ *
+ * This file contains a modified version of:
+ *  https://github.com/facebook/react/blob/0.11-stable/src/vendor/stubs/EventListener.js
+ *
+ * TODO: remove in favour of solution provided by:
+ *  https://github.com/facebook/react/issues/285
+ */
+
+/**
+ * Does not take into account specific nature of platform.
+ */
+var EventListener = {
+  /**
+   * Listen to DOM events during the bubble phase.
+   *
+   * @param {DOMEventTarget} target DOM element to register listener on.
+   * @param {string} eventType Event type, e.g. 'click' or 'mouseover'.
+   * @param {function} callback Callback function.
+   * @return {object} Object with a `remove` method.
+   */
+  listen: function(target, eventType, callback) {
+    if (target.addEventListener) {
+      target.addEventListener(eventType, callback, false);
+      return {
+        remove: function() {
+          target.removeEventListener(eventType, callback, false);
+        }
+      };
+    } else if (target.attachEvent) {
+      target.attachEvent('on' + eventType, callback);
+      return {
+        remove: function() {
+          target.detachEvent('on' + eventType, callback);
+        }
+      };
+    }
+  }
+};
+
+module.exports = EventListener;
+
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/TransitionEvents.js":[function(require,module,exports){
+/**
+ * React TransitionEvents
+ *
+ * Copyright 2013-2014 Facebook, Inc.
+ * @licence https://github.com/facebook/react/blob/0.11-stable/LICENSE
+ *
+ * This file contains a modified version of:
+ *  https://github.com/facebook/react/blob/0.11-stable/src/addons/transitions/ReactTransitionEvents.js
+ *
+ */
+
+var canUseDOM = !!(
+  typeof window !== 'undefined' &&
+    window.document &&
+    window.document.createElement
+  );
+
+/**
+ * EVENT_NAME_MAP is used to determine which event fired when a
+ * transition/animation ends, based on the style property used to
+ * define that event.
+ */
+var EVENT_NAME_MAP = {
+  transitionend: {
+    'transition': 'transitionend',
+    'WebkitTransition': 'webkitTransitionEnd',
+    'MozTransition': 'mozTransitionEnd',
+    'OTransition': 'oTransitionEnd',
+    'msTransition': 'MSTransitionEnd'
+  },
+
+  animationend: {
+    'animation': 'animationend',
+    'WebkitAnimation': 'webkitAnimationEnd',
+    'MozAnimation': 'mozAnimationEnd',
+    'OAnimation': 'oAnimationEnd',
+    'msAnimation': 'MSAnimationEnd'
+  }
+};
+
+var endEvents = [];
+
+function detectEvents() {
+  var testEl = document.createElement('div');
+  var style = testEl.style;
+
+  // On some platforms, in particular some releases of Android 4.x,
+  // the un-prefixed "animation" and "transition" properties are defined on the
+  // style object but the events that fire will still be prefixed, so we need
+  // to check if the un-prefixed events are useable, and if not remove them
+  // from the map
+  if (!('AnimationEvent' in window)) {
+    delete EVENT_NAME_MAP.animationend.animation;
+  }
+
+  if (!('TransitionEvent' in window)) {
+    delete EVENT_NAME_MAP.transitionend.transition;
+  }
+
+  for (var baseEventName in EVENT_NAME_MAP) {
+    var baseEvents = EVENT_NAME_MAP[baseEventName];
+    for (var styleName in baseEvents) {
+      if (styleName in style) {
+        endEvents.push(baseEvents[styleName]);
+        break;
+      }
+    }
+  }
+}
+
+if (canUseDOM) {
+  detectEvents();
+}
+
+// We use the raw {add|remove}EventListener() call because EventListener
+// does not know how to remove event listeners and we really should
+// clean up. Also, these events are not triggered in older browsers
+// so we should be A-OK here.
+
+function addEventListener(node, eventName, eventListener) {
+  node.addEventListener(eventName, eventListener, false);
+}
+
+function removeEventListener(node, eventName, eventListener) {
+  node.removeEventListener(eventName, eventListener, false);
+}
+
+var ReactTransitionEvents = {
+  addEndEventListener: function(node, eventListener) {
+    if (endEvents.length === 0) {
+      // If CSS transitions are not supported, trigger an "end animation"
+      // event immediately.
+      window.setTimeout(eventListener, 0);
+      return;
+    }
+    endEvents.forEach(function(endEvent) {
+      addEventListener(node, endEvent, eventListener);
+    });
+  },
+
+  removeEndEventListener: function(node, eventListener) {
+    if (endEvents.length === 0) {
+      return;
+    }
+    endEvents.forEach(function(endEvent) {
+      removeEventListener(node, endEvent, eventListener);
+    });
+  }
+};
+
+module.exports = ReactTransitionEvents;
+
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/ValidComponentChildren.js":[function(require,module,exports){
+var React = require('react');
+
+/**
+ * Maps children that are typically specified as `props.children`,
+ * but only iterates over children that are "valid components".
+ *
+ * The mapFunction provided index will be normalised to the components mapped,
+ * so an invalid component would not increase the index.
+ *
+ * @param {?*} children Children tree container.
+ * @param {function(*, int)} mapFunction.
+ * @param {*} mapContext Context for mapFunction.
+ * @return {object} Object containing the ordered map of results.
+ */
+function mapValidComponents(children, func, context) {
+  var index = 0;
+
+  return React.Children.map(children, function (child) {
+    if (React.isValidComponent(child)) {
+      var lastIndex = index;
+      index++;
+      return func.call(context, child, lastIndex);
+    }
+
+    return child;
+  });
+}
+
+/**
+ * Iterates through children that are typically specified as `props.children`,
+ * but only iterates over children that are "valid components".
+ *
+ * The provided forEachFunc(child, index) will be called for each
+ * leaf child with the index reflecting the position relative to "valid components".
+ *
+ * @param {?*} children Children tree container.
+ * @param {function(*, int)} forEachFunc.
+ * @param {*} forEachContext Context for forEachContext.
+ */
+function forEachValidComponents(children, func, context) {
+  var index = 0;
+
+  return React.Children.forEach(children, function (child) {
+    if (React.isValidComponent(child)) {
+      func.call(context, child, index);
+      index++;
+    }
+  });
+}
+
+/**
+ * Count the number of "valid components" in the Children container.
+ *
+ * @param {?*} children Children tree container.
+ * @returns {number}
+ */
+function numberOfValidComponents(children) {
+  var count = 0;
+
+  React.Children.forEach(children, function (child) {
+    if (React.isValidComponent(child)) { count++; }
+  });
+
+  return count;
+}
+
+/**
+ * Determine if the Child container has one or more "valid components".
+ *
+ * @param {?*} children Children tree container.
+ * @returns {boolean}
+ */
+function hasValidComponent(children) {
+  var hasValid = false;
+
+  React.Children.forEach(children, function (child) {
+    if (!hasValid && React.isValidComponent(child)) {
+      hasValid = true;
+    }
+  });
+
+  return hasValid;
+}
+
+module.exports = {
+  map: mapValidComponents,
+  forEach: forEachValidComponents,
+  numberOf: numberOfValidComponents,
+  hasValidComponent: hasValidComponent
+};
+},{"react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/classSet.js":[function(require,module,exports){
+/**
+ * React classSet
+ *
+ * Copyright 2013-2014 Facebook, Inc.
+ * @licence https://github.com/facebook/react/blob/0.11-stable/LICENSE
+ *
+ * This file is unmodified from:
+ *  https://github.com/facebook/react/blob/0.11-stable/src/vendor/stubs/cx.js
+ *
+ */
+
+/**
+ * This function is used to mark string literals representing CSS class names
+ * so that they can be transformed statically. This allows for modularization
+ * and minification of CSS class names.
+ *
+ * In static_upstream, this function is actually implemented, but it should
+ * eventually be replaced with something more descriptive, and the transform
+ * that is used in the main stack should be ported for use elsewhere.
+ *
+ * @param string|object className to modularize, or an object of key/values.
+ *                      In the object case, the values are conditions that
+ *                      determine if the className keys should be included.
+ * @param [string ...]  Variable list of classNames in the string case.
+ * @return string       Renderable space-separated CSS className.
+ */
+function cx(classNames) {
+  if (typeof classNames == 'object') {
+    return Object.keys(classNames).filter(function(className) {
+      return classNames[className];
+    }).join(' ');
+  } else {
+    return Array.prototype.join.call(arguments, ' ');
+  }
+}
+
+module.exports = cx;
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/cloneWithProps.js":[function(require,module,exports){
+/**
+ * React cloneWithProps
+ *
+ * Copyright 2013-2014 Facebook, Inc.
+ * @licence https://github.com/facebook/react/blob/0.11-stable/LICENSE
+ *
+ * This file contains modified versions of:
+ *  https://github.com/facebook/react/blob/0.11-stable/src/utils/cloneWithProps.js
+ *  https://github.com/facebook/react/blob/0.11-stable/src/core/ReactPropTransferer.js
+ *  https://github.com/facebook/react/blob/0.11-stable/src/utils/joinClasses.js
+ *
+ * TODO: This should be replaced as soon as cloneWithProps is available via
+ *  the core React package or a separate package.
+ *  @see https://github.com/facebook/react/issues/1906
+ *
+ */
+
+var React = require('react');
+var merge = require('./merge');
+
+/**
+ * Combines multiple className strings into one.
+ * http://jsperf.com/joinclasses-args-vs-array
+ *
+ * @param {...?string} classes
+ * @return {string}
+ */
+function joinClasses(className/*, ... */) {
+  if (!className) {
+    className = '';
+  }
+  var nextClass;
+  var argLength = arguments.length;
+  if (argLength > 1) {
+    for (var ii = 1; ii < argLength; ii++) {
+      nextClass = arguments[ii];
+      nextClass && (className += ' ' + nextClass);
+    }
+  }
+  return className;
+}
+
+/**
+ * Creates a transfer strategy that will merge prop values using the supplied
+ * `mergeStrategy`. If a prop was previously unset, this just sets it.
+ *
+ * @param {function} mergeStrategy
+ * @return {function}
+ */
+function createTransferStrategy(mergeStrategy) {
+  return function(props, key, value) {
+    if (!props.hasOwnProperty(key)) {
+      props[key] = value;
+    } else {
+      props[key] = mergeStrategy(props[key], value);
+    }
+  };
+}
+
+var transferStrategyMerge = createTransferStrategy(function(a, b) {
+  // `merge` overrides the first object's (`props[key]` above) keys using the
+  // second object's (`value`) keys. An object's style's existing `propA` would
+  // get overridden. Flip the order here.
+  return merge(b, a);
+});
+
+function emptyFunction() {}
+
+/**
+ * Transfer strategies dictate how props are transferred by `transferPropsTo`.
+ * NOTE: if you add any more exceptions to this list you should be sure to
+ * update `cloneWithProps()` accordingly.
+ */
+var TransferStrategies = {
+  /**
+   * Never transfer `children`.
+   */
+  children: emptyFunction,
+  /**
+   * Transfer the `className` prop by merging them.
+   */
+  className: createTransferStrategy(joinClasses),
+  /**
+   * Never transfer the `key` prop.
+   */
+  key: emptyFunction,
+  /**
+   * Never transfer the `ref` prop.
+   */
+  ref: emptyFunction,
+  /**
+   * Transfer the `style` prop (which is an object) by merging them.
+   */
+  style: transferStrategyMerge
+};
+
+/**
+ * Mutates the first argument by transferring the properties from the second
+ * argument.
+ *
+ * @param {object} props
+ * @param {object} newProps
+ * @return {object}
+ */
+function transferInto(props, newProps) {
+  for (var thisKey in newProps) {
+    if (!newProps.hasOwnProperty(thisKey)) {
+      continue;
+    }
+
+    var transferStrategy = TransferStrategies[thisKey];
+
+    if (transferStrategy && TransferStrategies.hasOwnProperty(thisKey)) {
+      transferStrategy(props, thisKey, newProps[thisKey]);
+    } else if (!props.hasOwnProperty(thisKey)) {
+      props[thisKey] = newProps[thisKey];
+    }
+  }
+  return props;
+}
+
+/**
+ * Merge two props objects using TransferStrategies.
+ *
+ * @param {object} oldProps original props (they take precedence)
+ * @param {object} newProps new props to merge in
+ * @return {object} a new object containing both sets of props merged.
+ */
+function mergeProps(oldProps, newProps) {
+  return transferInto(merge(oldProps), newProps);
+}
+
+var ReactPropTransferer = {
+  mergeProps: mergeProps
+};
+
+var CHILDREN_PROP = 'children';
+
+/**
+ * Sometimes you want to change the props of a child passed to you. Usually
+ * this is to add a CSS class.
+ *
+ * @param {object} child child component you'd like to clone
+ * @param {object} props props you'd like to modify. They will be merged
+ * as if you used `transferPropsTo()`.
+ * @return {object} a clone of child with props merged in.
+ */
+function cloneWithProps(child, props) {
+  var newProps = ReactPropTransferer.mergeProps(props, child.props);
+
+  // Use `child.props.children` if it is provided.
+  if (!newProps.hasOwnProperty(CHILDREN_PROP) &&
+    child.props.hasOwnProperty(CHILDREN_PROP)) {
+    newProps.children = child.props.children;
+  }
+
+  // Huge hack to support both the 0.10 API and the new way of doing things
+  // TODO: remove when support for 0.10 is no longer needed
+  if (React.version.indexOf('0.10.') === 0) {
+    return child.constructor.ConvenienceConstructor(newProps);
+  }
+
+
+  // The current API doesn't retain _owner and _context, which is why this
+  // doesn't use ReactDescriptor.cloneAndReplaceProps.
+  return child.constructor(newProps);
+}
+
+module.exports = cloneWithProps;
+},{"./merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/merge.js","react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/createChainedFunction.js":[function(require,module,exports){
+/**
+ * Safe chained function
+ *
+ * Will only create a new function if needed,
+ * otherwise will pass back existing functions or null.
+ *
+ * @param {function} one
+ * @param {function} two
+ * @returns {function|null}
+ */
+function createChainedFunction(one, two) {
+  var hasOne = typeof one === 'function';
+  var hasTwo = typeof two === 'function';
+
+  if (!hasOne && !hasTwo) { return null; }
+  if (!hasOne) { return two; }
+  if (!hasTwo) { return one; }
+
+  return function chainedFunction() {
+    one.apply(this, arguments);
+    two.apply(this, arguments);
+  };
+}
+
+module.exports = createChainedFunction;
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/domUtils.js":[function(require,module,exports){
+
+/**
+ * Shortcut to compute element style
+ *
+ * @param {HTMLElement} elem
+ * @returns {CssStyle}
+ */
+function getComputedStyles(elem) {
+  return elem.ownerDocument.defaultView.getComputedStyle(elem, null);
+}
+
+/**
+ * Get elements offset
+ *
+ * TODO: REMOVE JQUERY!
+ *
+ * @param {HTMLElement} DOMNode
+ * @returns {{top: number, left: number}}
+ */
+function getOffset(DOMNode) {
+  if (window.jQuery) {
+    return window.jQuery(DOMNode).offset();
+  }
+
+  var docElem = document.documentElement;
+  var box = { top: 0, left: 0 };
+
+  // If we don't have gBCR, just use 0,0 rather than error
+  // BlackBerry 5, iOS 3 (original iPhone)
+  if ( typeof DOMNode.getBoundingClientRect !== 'undefined' ) {
+    box = DOMNode.getBoundingClientRect();
+  }
+
+  return {
+    top: box.top + window.pageYOffset - docElem.clientTop,
+    left: box.left + window.pageXOffset - docElem.clientLeft
+  };
+}
+
+/**
+ * Get elements position
+ *
+ * TODO: REMOVE JQUERY!
+ *
+ * @param {HTMLElement} elem
+ * @param {HTMLElement?} offsetParent
+ * @returns {{top: number, left: number}}
+ */
+function getPosition(elem, offsetParent) {
+  if (window.jQuery) {
+    return window.jQuery(elem).position();
+  }
+
+  var offset,
+      parentOffset = {top: 0, left: 0};
+
+  // Fixed elements are offset from window (parentOffset = {top:0, left: 0}, because it is its only offset parent
+  if (getComputedStyles(elem).position === 'fixed' ) {
+    // We assume that getBoundingClientRect is available when computed position is fixed
+    offset = elem.getBoundingClientRect();
+
+  } else {
+    if (!offsetParent) {
+      // Get *real* offsetParent
+      offsetParent = offsetParent(elem);
+    }
+
+    // Get correct offsets
+    offset = getOffset(elem);
+    if ( offsetParent.nodeName !== 'HTML') {
+      parentOffset = getOffset(offsetParent);
+    }
+
+    // Add offsetParent borders
+    parentOffset.top += parseInt(getComputedStyles(offsetParent).borderTopWidth, 10);
+    parentOffset.left += parseInt(getComputedStyles(offsetParent).borderLeftWidth, 10);
+  }
+
+  // Subtract parent offsets and element margins
+  return {
+    top: offset.top - parentOffset.top - parseInt(getComputedStyles(elem).marginTop, 10),
+    left: offset.left - parentOffset.left - parseInt(getComputedStyles(elem).marginLeft, 10)
+  };
+}
+
+/**
+ * Get parent element
+ *
+ * @param {HTMLElement?} elem
+ * @returns {HTMLElement}
+ */
+function offsetParent(elem) {
+  var docElem = document.documentElement;
+  var offsetParent = elem.offsetParent || docElem;
+
+  while ( offsetParent && ( offsetParent.nodeName !== 'HTML' &&
+    getComputedStyles(offsetParent).position === 'static' ) ) {
+    offsetParent = offsetParent.offsetParent;
+  }
+
+  return offsetParent || docElem;
+}
+
+module.exports = {
+  getComputedStyles: getComputedStyles,
+  getOffset: getOffset,
+  getPosition: getPosition,
+  offsetParent: offsetParent
+};
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-bootstrap/utils/merge.js":[function(require,module,exports){
+/**
+ * Merge helper
+ *
+ * TODO: to be replaced with ES6's `Object.assign()` for React 0.12
+ */
+
+/**
+ * Shallow merges two structures by mutating the first parameter.
+ *
+ * @param {object} one Object to be merged into.
+ * @param {?object} two Optional object with properties to merge from.
+ */
+function mergeInto(one, two) {
+  if (two != null) {
+    for (var key in two) {
+      if (!two.hasOwnProperty(key)) {
+        continue;
+      }
+      one[key] = two[key];
+    }
+  }
+}
+
+/**
+ * Shallow merges two structures into a return value, without mutating either.
+ *
+ * @param {?object} one Optional object with properties to merge from.
+ * @param {?object} two Optional object with properties to merge from.
+ * @return {object} The shallow extension of one by two.
+ */
+function merge(one, two) {
+  var result = {};
+  mergeInto(result, one);
+  mergeInto(result, two);
+  return result;
+}
+
+module.exports = merge;
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/AutoFocusMixin.js":[function(require,module,exports){
 /**
  * Copyright 2013-2014 Facebook, Inc.
  *

@@ -85,6 +85,8 @@ Remember to open up the console, you'll see the debugger in action.
 ```js
 assertEqual(component, type, [opts])
 ```
+- `component` a React component
+- `type` a `struct` or a `subtype` of a `struct`
 
 If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
 
@@ -122,5 +124,46 @@ React.renderComponent(
 // KO
 React.renderComponent(
   <Anchor href="#section">title</Anchor>
+, mountNode);
+```
+
+## Bindings
+
+```js
+bind(component, type, opts)
+```
+The arguments are the same of `assertEqual`. Returns a proxy component with asserts included.
+
+Example
+
+```js
+var UnsafeAlert = require('react-bootstrap/Alert');
+var BsStyle = enums.of('info success warning danger', 'BsStyle');
+var BsSize = enums.of('large medium small xsmall', 'BsSize');
+
+// onDismiss and dismissAfter must either or neither passed
+var eitherOrNeither = function (x) {
+  return Nil.is(x.onDismiss) === Nil.is(x.dismissAfter);
+};
+
+var AlertProps = subtype(struct({
+  __type__: enums.of('Alert'),
+  bsStyle: maybe(BsStyle),
+  bsSize: maybe(BsSize),
+  onDismiss: maybe(Func),
+  dismissAfter: maybe(Num),
+  children: Any
+}), eitherOrNeither, 'Alert');
+
+var Alert = Tcomb.react.bind(UnsafeAlert, AlertProps);
+
+// OK
+React.renderComponent(
+  <Alert bsStyle="warning">hey</Alert>
+, mountNode);
+
+// KO, worng `bsStyle`
+React.renderComponent(
+  <Alert bsStyle="unknown">hey</Alert>
 , mountNode);
 ```
