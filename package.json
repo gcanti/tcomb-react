@@ -15,8 +15,8 @@
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
   "dependencies": {
-    "tcomb": "*",
-    "tcomb-validation": "*",
+    "tcomb": "~0.2.0",
+    "tcomb-validation": "~0.1.0",
     "react": "*"
   },
   "devDependencies": {
