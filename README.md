@@ -162,7 +162,7 @@ React.renderComponent(
   <Alert bsStyle="warning">hey</Alert>
 , mountNode);
 
-// KO, worng `bsStyle`
+// KO, wrong `bsStyle`
 React.renderComponent(
   <Alert bsStyle="unknown">hey</Alert>
 , mountNode);
