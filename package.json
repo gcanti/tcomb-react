@@ -17,7 +17,7 @@
   "dependencies": {
     "tcomb": "~0.2.0",
     "tcomb-validation": "~0.1.0",
-    "react": "*"
+    "react": "~0.11.1"
   },
   "devDependencies": {
     "react-bootstrap": "*"

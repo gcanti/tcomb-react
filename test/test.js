@@ -53,6 +53,7 @@ describe('assertEqual', function () {
 
     it('should not throw when props are correct', function () {
       React.renderComponentToString(Anchor({href: "#section"}, "title"));
+      React.renderComponentToString(Anchor({href: "#section", unknown: "true"}, "title"));
     });
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
@@ -67,9 +68,6 @@ describe('assertEqual', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}, React.DOM.span(null, "title")));
       }, 'Invalid type argument `value` of value `{"children":"title","_tag":"span"}` supplied to `Str`, expected a `Str`.');
-      throwsWithMessage(function () {
-        React.renderComponentToString(Anchor({href: "#section", unknown: "true"}, "title"));
-      }, 'type `Anchor` does not handle property `unknown`');
     });
   });
   describe('when the model is a subtype', function () {

@@ -61,17 +61,12 @@ here some results
 ```js
 // OK
 React.renderComponent(
-  <Anchor href="#section">title</Anchor>
-, mountNode);
-
-// KO, `unknown` attribute not specified
-React.renderComponent(
-  <Anchor href="#section" unknown="true">title</Anchor>
+  <Anchor href="#section">content</Anchor>
 , mountNode);
 
 // KO, href is missing
 React.renderComponent(
-  <Anchor>title</Anchor>
+  <Anchor>content</Anchor>
 , mountNode);
 
 // KO, content is missing
@@ -81,12 +76,12 @@ React.renderComponent(
 
 // KO, href is wrong
 React.renderComponent(
-  <Anchor href="http://mydomain.com">title</Anchor>
+  <Anchor href="http://mydomain.com">content</Anchor>
 , mountNode);
 
 // KO, content should be a string not a span
 React.renderComponent(
-  <Anchor href="#section"><span>title</span></Anchor>
+  <Anchor href="#section"><span>content</span></Anchor>
 , mountNode);
 ```
 
@@ -94,16 +89,16 @@ React.renderComponent(
 
 ### opts.strict
 
-If set to `false`, allows unspecified properties (default `true`).
+If set to `true`, disallows unspecified properties (default `false`).
 
 ```js
-t.react.assertEqual(this.props, Props, {strict: false});
+t.react.assertEqual(this.props, Props, {strict: true});
 
 ...
 
-// OK
+// KO, forbidden `title` attribute
 React.renderComponent(
-  <Anchor href="#section" unknown="true">title</Anchor>
+  <Anchor href="#section" title="mytytle">content</Anchor>
 , mountNode);
 ```
 
@@ -162,7 +157,7 @@ var Anchor = require('safe-component.js')
 
 // KO, href is missing
 React.renderComponent(
-  <Anchor>title</Anchor>
+  <Anchor>content</Anchor>
 , mountNode);
 ```
 
@@ -181,11 +176,11 @@ var Props = struct({
 
 // OK
 React.renderComponent(
-  <Anchor href="#section"><span>title</span></Anchor>
+  <Anchor href="#section"><span>content</span></Anchor>
 , mountNode);
 
 // KO
 React.renderComponent(
-  <Anchor href="#section">title</Anchor>
+  <Anchor href="#section">content</Anchor>
 , mountNode);
 ```

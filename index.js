@@ -67,15 +67,11 @@ function assertLeq(actualProps, type) {
   }
 }
 
-function check(actualProps, type, opts, checkTag) {
+function check(actualProps, type, opts) {
   opts = opts || {};
-  opts.strict = t.Bool.is(opts.strict) ? opts.strict : true; 
   var innerStruct = unpackStruct(type);
   if (opts.strict) {
     assertLeq(actualProps, innerStruct);
-  }
-  if (checkTag) {
-    assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
   }
   return type(actualProps);
 }
@@ -102,6 +98,7 @@ function bind(component, type, opts) {
   
   assert(t.Func.is(component), 'Invalid argument `component` of value `%j` supplied to `bind()`, expected a component.', component);
   assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
+  //assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
 
   var displayName = getDisplayName(component);
   assert(t.Str.is(displayName), 'Invalid argument `component` of name `%s` supplied to `bind()`, the component must have a displayName.', displayName);
@@ -123,7 +120,7 @@ function bind(component, type, opts) {
     value[TYPE] = displayName;
 
     // check
-    check(value, type, opts, true);
+    check(value, type, opts);
     
     // delegate rendering to the orginal component
     return component.apply(component, arguments);
