@@ -1,9 +1,26 @@
 % tcomb-react
 
-This library allows you to check all the props of your React components (the children too). If you pass a wrong
-prop to the component, it throws an error with a **descriptive message**.
+This library allows you to check the props of a React component (the children too).
 
-# Example: an internal link
+# Use cases
+
+- [Prototyping](prototyping)
+- [Safe components](safe-components)
+
+# Prototyping
+
+To add a throwaway type checking while prototyping, add some raw asserts to your `render` methods.
+
+```js
+assertEqual(props, type, [opts])
+```
+- `props` component props
+- `type` a `struct` or a `subtype` of a `struct`
+- `opts` see [Options](options)
+
+If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
+
+## Example
 
 Let's build a simple React component with a fancy spec, the component must have:
 
@@ -11,10 +28,10 @@ Let's build a simple React component with a fancy spec, the component must have:
 - only one child and it must be a string
 
 ```js
-var Tcomb = require('tcomb-react');
-var Str = Tcomb.Str;          // the string type
-var subtype = Tcomb.subtype;  // build a subtype
-var struct = Tcomb.struct;    // build a struct (i.e. a class)
+var t = require('tcomb-react');
+var Str = t.Str;          // the string type
+var subtype = t.subtype;  // build a subtype
+var struct = t.struct;    // build a struct (i.e. a class)
 
 // a predicate is a function with signature (x) -> boolean
 var predicate = function (s) { return s.substring(0, 1) === '#'; };
@@ -23,7 +40,7 @@ var predicate = function (s) { return s.substring(0, 1) === '#'; };
 var Href = subtype(Str, predicate);
 
 // the props spec
-var Props = struct({
+var AnchorProps = struct({
   href: Href,
   children: Str
 });
@@ -31,7 +48,7 @@ var Props = struct({
 var Anchor = React.createClass({
   render: function () {
     // add this assert and you are done
-    Tcomb.react.assertEqual(this, Props);
+    t.react.assertEqual(this.props, AnchorProps);
     return (
       <a href={this.props.href}>{this.props.children}</a>
     );
@@ -73,29 +90,14 @@ React.renderComponent(
 , mountNode);
 ```
 
-To try this example in your browser, download the code and open [example/example.html](example/example.html).
-Remember to open up the console, you'll see the debugger in action.
-
-# Api
-
-*To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb).*
-
-## Asserts
-
-```js
-assertEqual(component, type, [opts])
-```
-- `component` a React component
-- `type` a `struct` or a `subtype` of a `struct`
-
-If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
+## Options
 
 ### opts.strict
 
 If set to `false`, allows unspecified properties (default `true`).
 
 ```js
-Tcomb.react.assertEqual(this, Props, {strict: false});
+t.react.assertEqual(this.props, Props, {strict: false});
 
 ...
 
@@ -105,7 +107,70 @@ React.renderComponent(
 , mountNode);
 ```
 
-## Tags
+*To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb).*
+
+# Safe components
+
+For third part components or if you want a more fine-grained control you can `bind` your component to a type. 
+The function `bind` returns a proxy component with the same interface of the original but with asserts included.
+In production you can choose to switch from the proxy component to the original one.
+
+```js
+bind(component, type, opts)
+```
+
+- `component` a React component descriptor
+- `type` a `struct` or a `subtype` of a `struct`
+- `opts` see [Options](options)
+
+## Workflow
+
+### 1. Define your component as usual
+
+```js
+// unsafe-component.js
+var Anchor = React.createClass({
+  render: function () {
+    return (
+      <a href={this.props.href}>{this.props.children}</a>
+    );
+  }
+});
+
+module.exports = Anchor;
+```
+
+### 2. Define the type of the props
+
+```js
+// safe-component.js
+var AnchorProps = struct({
+  _tag: enums.of('Alert'), // this must match the component displayName
+  href: Href,
+  children: Str
+});
+
+var Anchor = require('unsafe-component.js');
+
+module.exports = t.rect.bind(Anchor, AnchorProps);
+```
+
+### 3. Use the proxy safely
+
+```js
+// app.js
+
+var Anchor = require('safe-component.js')
+
+// KO, href is missing
+React.renderComponent(
+  <Anchor>title</Anchor>
+, mountNode);
+```
+
+You can find more examples on `bind` in the [tcomb-react-bootstrap](https://github.com/gcanti/tcomb-react-bootstrap) project.
+
+# Tags
 
 For each `HTML` tag, there is a ready type in the `DOM` namespace.
 Say you want modify the above example to accept only a `span` child:
@@ -113,7 +178,7 @@ Say you want modify the above example to accept only a `span` child:
 ```js
 var Props = struct({
   href: Href,
-  children: Tcomb.react.DOM.Span
+  children: t.react.DOM.Span
 });
 
 // OK
@@ -124,46 +189,5 @@ React.renderComponent(
 // KO
 React.renderComponent(
   <Anchor href="#section">title</Anchor>
-, mountNode);
-```
-
-## Bindings
-
-```js
-bind(component, type, opts)
-```
-The arguments are the same of `assertEqual`. Returns a proxy component with asserts included.
-
-Example
-
-```js
-var UnsafeAlert = require('react-bootstrap/Alert');
-var BsStyle = enums.of('info success warning danger', 'BsStyle');
-var BsSize = enums.of('large medium small xsmall', 'BsSize');
-
-// onDismiss and dismissAfter must either or neither passed
-var eitherOrNeither = function (x) {
-  return Nil.is(x.onDismiss) === Nil.is(x.dismissAfter);
-};
-
-var AlertProps = subtype(struct({
-  __type__: enums.of('Alert'),
-  bsStyle: maybe(BsStyle),
-  bsSize: maybe(BsSize),
-  onDismiss: maybe(Func),
-  dismissAfter: maybe(Num),
-  children: Any
-}), eitherOrNeither, 'Alert');
-
-var Alert = Tcomb.react.bind(UnsafeAlert, AlertProps);
-
-// OK
-React.renderComponent(
-  <Alert bsStyle="warning">hey</Alert>
-, mountNode);
-
-// KO, wrong `bsStyle`
-React.renderComponent(
-  <Alert bsStyle="unknown">hey</Alert>
 , mountNode);
 ```

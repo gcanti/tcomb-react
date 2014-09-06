@@ -11,7 +11,7 @@ var isType = t.util.isType;
 // utils
 //
 
-var TYPE = '__type__';
+var TYPE = '_tag';
 var isComponent = ReactDescriptor.isValidDescriptor;
 
 // returns the displayName of a component
@@ -32,18 +32,19 @@ function unpackStruct(type) {
   return unpackStruct(type.meta.type);
 }
 
-function unpackProps(x, omitType) {
+function unpack(x, omitType) {
   if (t.Arr.is(x)) {
-    return x.map(unpackProps);
+    return x.map(unpack);
   }
   if (t.Obj.is(x)) {
     var ret = {};
-    for (var k in x.props) {
-      if (x.props.hasOwnProperty(k)) {
-        ret[k] = unpackProps(x.props[k]);
+    var props = x.props || x;
+    for (var k in props) {
+      if (props.hasOwnProperty(k)) {
+        ret[k] = unpack(props[k]);
       }
     }
-    if (!omitType) {
+    if (x.props) {
       ret[TYPE] = getDisplayName(x);
     }
     return ret;
@@ -66,22 +67,21 @@ function assertLeq(actualProps, type) {
   }
 }
 
-function check(actualProps, type, opts, checkType) {
+function check(actualProps, type, opts, checkTag) {
   opts = opts || {};
   opts.strict = t.Bool.is(opts.strict) ? opts.strict : true; 
   var innerStruct = unpackStruct(type);
-  if (checkType) {
-    assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
-  }
   if (opts.strict) {
     assertLeq(actualProps, innerStruct);
+  }
+  if (checkTag) {
+    assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
   }
   return type(actualProps);
 }
 
-function assertEqual(component, type, opts) {
-  var actualProps = unpackProps(component, true);
-  return check(actualProps, type, opts);
+function assertEqual(props, type, opts) {
+  return check(unpack(props), type, opts);
 }
 
 //
@@ -119,7 +119,7 @@ function bind(component, type, opts) {
     } else if (len > 2) {
       value.children = Array.prototype.slice.call(arguments, 1);
     }
-    value.children = unpackProps(value.children);
+    value.children = unpack(value.children);
     value[TYPE] = displayName;
 
     // check

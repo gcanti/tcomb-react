@@ -44,7 +44,7 @@ describe('assertEqual', function () {
 
     var Anchor = React.createClass({displayName: 'Anchor',
       render: function () {
-        t.react.assertEqual(this, Props);
+        t.react.assertEqual(this.props, Props);
         return (
           React.DOM.a({href: this.props.href}, this.props.children)
         );
@@ -66,7 +66,7 @@ describe('assertEqual', function () {
       }, 'Invalid type argument `value` of value `"http://mydomain.com"` supplied to `Href`, expected a valid value for the predicate.');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}, React.DOM.span(null, "title")));
-      }, 'Invalid type argument `value` of value `{"children":"title","__type__":"span"}` supplied to `Str`, expected a `Str`.');
+      }, 'Invalid type argument `value` of value `{"children":"title","_tag":"span"}` supplied to `Str`, expected a `Str`.');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section", unknown: "true"}, "title"));
       }, 'type `Anchor` does not handle property `unknown`');
@@ -85,7 +85,7 @@ describe('assertEqual', function () {
 
     var Component = React.createClass({displayName: 'Component',
       render: function () {
-        t.react.assertEqual(this, Props);
+        t.react.assertEqual(this.props, Props);
         return (
           React.DOM.div({foo: this.props.foo, bar: this.props.bar}, this.props.children)
         );
@@ -120,7 +120,7 @@ describe('bind', function () {
   describe('when the model is a struct', function () {
 
     var AlertProps = struct({
-      __type__: enums.of('Alert'), // ugly
+      _tag: enums.of('Alert'),
       bsStyle: maybe(BsStyle),
       bsSize: maybe(BsSize),
       onDismiss: maybe(Func),
@@ -146,7 +146,7 @@ describe('bind', function () {
   describe('when the model is a subtype', function () {
 
     var AlertProps = subtype(struct({
-      __type__: enums.of('Alert'), // ugly
+      _tag: enums.of('Alert'),
       bsStyle: maybe(BsStyle),
       bsSize: maybe(BsSize),
       onDismiss: maybe(Func),
@@ -166,7 +166,7 @@ describe('bind', function () {
       }, 'Invalid type argument `value` of value `"unknown"` supplied to `BsStyle`, expected a valid enum.');
       throwsWithMessage(function () {
         React.renderComponentToString(Alert({bsStyle: "warning", dismissAfter: 10}, 'hello'));
-      }, 'Invalid type argument `value` of value `{"bsStyle":"warning","dismissAfter":10,"children":"hello","__type__":"Alert"}` supplied to `Alert`, expected a valid value for the predicate.');
+      }, 'Invalid type argument `value` of value `{"bsStyle":"warning","dismissAfter":10,"children":"hello","_tag":"Alert"}` supplied to `Alert`, expected a valid value for the predicate.');
     });
   });
 
