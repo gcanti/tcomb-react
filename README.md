@@ -152,7 +152,7 @@ var AnchorProps = struct({
 
 var Anchor = require('unsafe-component.js');
 
-module.exports = t.rect.bind(Anchor, AnchorProps);
+module.exports = t.react.bind(Anchor, AnchorProps);
 ```
 
 ### 3. Use the proxy safely
