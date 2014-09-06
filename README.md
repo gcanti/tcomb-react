@@ -4,8 +4,8 @@ This library allows you to check the props of a React component (the children to
 
 # Use cases
 
-- [Prototyping](prototyping)
-- [Safe components](safe-components)
+- [Prototyping](#prototyping)
+- [Safe components](#safe-components)
 
 # Prototyping
 
@@ -16,7 +16,7 @@ assertEqual(props, type, [opts])
 ```
 - `props` component props
 - `type` a `struct` or a `subtype` of a `struct`
-- `opts` see [Options](options)
+- `opts` see [Options](#options)
 
 If you pass a wrog prop to the component **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong, then it throws an error with a descriptive message.
 
@@ -107,8 +107,6 @@ React.renderComponent(
 , mountNode);
 ```
 
-*To find out all the controls and the types you can define see [here](https://github.com/gcanti/tcomb).*
-
 # Safe components
 
 For third party components or if you want a more fine-grained control you can `bind` your component to a type. 
@@ -121,7 +119,7 @@ bind(component, type, opts)
 
 - `component` a React component descriptor
 - `type` a `struct` or a `subtype` of a `struct`
-- `opts` see [Options](options)
+- `opts` see [Options](#options)
 
 ## Workflow
 
@@ -168,12 +166,12 @@ React.renderComponent(
 , mountNode);
 ```
 
-You can find more examples on `bind` in the [tcomb-react-bootstrap](https://github.com/gcanti/tcomb-react-bootstrap) project.
+You can find more examples of `bind` in the [tcomb-react-bootstrap](https://github.com/gcanti/tcomb-react-bootstrap) project.
 
 # Tags
 
 For each `HTML` tag, there is a ready type in the `DOM` namespace.
-Say you want modify the above example to accept only a `span` child:
+Say you want modify the first example to accept only a `span` child:
 
 ```js
 var Props = struct({
