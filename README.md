@@ -111,7 +111,7 @@ React.renderComponent(
 
 # Safe components
 
-For third part components or if you want a more fine-grained control you can `bind` your component to a type. 
+For third party components or if you want a more fine-grained control you can `bind` your component to a type. 
 The function `bind` returns a proxy component with the same interface of the original but with asserts included.
 In production you can choose to switch from the proxy component to the original one.
 
