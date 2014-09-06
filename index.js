@@ -87,7 +87,9 @@ function assertEqual(props, type, opts) {
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
-  DOM[name] = t.enums.of(tagName);
+  var props = {};
+  props[TYPE] = t.enums.of(tagName, name)
+  DOM[name] = t.struct(props, name);
 });
 
 //
