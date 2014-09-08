@@ -4,6 +4,10 @@
 
 This library allows you to add type checking to React components. You can check all props, including the children. You can even check the quality and quantity of nested components.
 
+# Playground
+
+If you want to see this library in action, try the playground [here](https://gcanti.github.io/resources/tcomb-react-bootstrap/playground/playground.html)
+
 # Contents
 
 - [How to add type checking while prototyping](#prototyping)
