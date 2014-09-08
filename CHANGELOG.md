@@ -1,3 +1,7 @@
+v0.1.1
+
+- fix #3
+
 v0.1.0
 
 - added React types
