@@ -21,6 +21,7 @@ var maybe = t.maybe;
 var ok = function (x) { assert.strictEqual(true, x); };
 var ko = function (x) { assert.strictEqual(false, x); };
 var eq = assert.strictEqual;
+var dep = assert.deepEqual;
 var throwsWithMessage = function (f, message) {
     assert['throws'](f, function (err) {
         ok(err instanceof Error);
@@ -29,6 +30,45 @@ var throwsWithMessage = function (f, message) {
     });
 };
 var doesNotThrow = assert.doesNotThrow;
+
+//
+// utils
+//
+
+describe('getDisplayName(x)', function () {
+
+  var Factory = React.createClass({displayName: 'Factory',
+    render: function () {
+      return React.DOM.div();
+    }
+  });
+
+  it('should return the displayName of a factory', function () {
+    eq(t.react.getDisplayName(Factory), 'Factory');
+  });
+
+  it('should return the displayName of a component', function () {
+    eq(t.react.getDisplayName(Factory()), 'Factory');
+  });
+
+});
+
+describe('objectify(args)', function () {
+  it('should return an object containing the props', function () {
+    dep(t.react.objectify([{a: 1}]), {a: 1});
+  });
+  it('should return an object containing the props and one child', function () {
+    dep(t.react.objectify([{a: 1}, 'b']), {a: 1, children: 'b'});
+  });
+  it('should return an object containing the props and an array of children', function () {
+    dep(t.react.objectify([{a: 1}, 'b', 'c']), {a: 1, children: ['b', 'c']});
+  });
+});
+
+
+//
+// assertEqual
+//
 
 describe('assertEqual(props, type, [opts])', function () {
 
@@ -68,7 +108,7 @@ describe('assertEqual(props, type, [opts])', function () {
       }, 'Invalid type argument `value` of value `"http://mydomain.com"` supplied to `Href`, expected a valid value for the predicate.');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}, React.DOM.span(null, "title")));
-      }, 'Invalid type argument `value` of value `{"children":"title","_tag":"span"}` supplied to `Str`, expected a `Str`.');
+      }, 'Invalid type argument `value` of value `{"__tag__":"span","children":"title"}` supplied to `Str`, expected a `Str`.');
     });
   });
 
@@ -134,7 +174,11 @@ describe('assertEqual(props, type, [opts])', function () {
 
 });
 
-describe('bind(component, type, [opts])', function () {
+//
+// bind
+//
+
+describe('bind(factory, type, [opts])', function () {
 
   var BsStyle = enums.of('info success warning danger', 'BsStyle');
   var BsSize = enums.of('large medium small xsmall', 'BsSize');
@@ -144,10 +188,10 @@ describe('bind(component, type, [opts])', function () {
     return Nil.is(x.onDismiss) === Nil.is(x.dismissAfter);
   };
 
-  describe('when the model is a struct', function () {
+  describe('when the type is a struct', function () {
 
     var AlertProps = struct({
-      _tag: enums.of('Alert'),
+      __tag__: enums.of('Alert'),
       bsStyle: maybe(BsStyle),
       bsSize: maybe(BsSize),
       onDismiss: maybe(Func),
@@ -157,6 +201,9 @@ describe('bind(component, type, [opts])', function () {
 
     var Alert = t.react.bind(UnsafeAlert, AlertProps);
 
+    it('should be a valid ReactDescriptor', function () {
+      ok(t.react.Component.is(Alert()));
+    });
     it('should not throw when props are correct', function () {
       React.renderComponentToString(Alert({bsStyle: "warning"}, 'hello'));
     });
@@ -170,10 +217,10 @@ describe('bind(component, type, [opts])', function () {
     });
   });
 
-  describe('when the model is a subtype', function () {
+  describe('when the type is a subtype', function () {
 
     var AlertProps = subtype(struct({
-      _tag: enums.of('Alert'),
+      __tag__: enums.of('Alert'),
       bsStyle: maybe(BsStyle),
       bsSize: maybe(BsSize),
       onDismiss: maybe(Func),
@@ -193,9 +240,10 @@ describe('bind(component, type, [opts])', function () {
       }, 'Invalid type argument `value` of value `"unknown"` supplied to `BsStyle`, expected a valid enum.');
       throwsWithMessage(function () {
         React.renderComponentToString(Alert({bsStyle: "warning", dismissAfter: 10}, 'hello'));
-      }, 'Invalid type argument `value` of value `{"bsStyle":"warning","dismissAfter":10,"children":"hello","_tag":"Alert"}` supplied to `Alert`, expected a valid value for the predicate.');
+      }, 'Invalid type argument `value` of value `{"bsStyle":"warning","dismissAfter":10,"children":"hello","__tag__":"Alert"}` supplied to `Alert`, expected a valid value for the predicate.');
     });
   });
 
 });
+
 

@@ -1,7 +1,7 @@
 {
   "name": "tcomb-react",
-  "version": "0.0.3",
-  "description": "React integration",
+  "version": "0.1.0",
+  "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {},
   "repository": {
@@ -15,12 +15,11 @@
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
   "dependencies": {
-    "tcomb": "~0.2.0",
     "tcomb-validation": "~0.1.0",
     "react": "~0.11.1"
   },
   "devDependencies": {
-    "react-bootstrap": "*"
+    "react-bootstrap": "~0.11.1"
   },
   "tags": [
     "tcomb",

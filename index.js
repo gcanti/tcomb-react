@@ -1,8 +1,9 @@
 'use strict';
 
-var t = require('tcomb');
+var t = require('tcomb-validation');
 var React = require('react');
 var ReactDescriptor = require('react/lib/ReactDescriptor');
+var isRenderable = require('./isRenderable');
 
 var assert = t.assert;
 var isType = t.util.isType;
@@ -11,55 +12,71 @@ var isType = t.util.isType;
 // utils
 //
 
-var TYPE = '_tag';
-var isComponent = ReactDescriptor.isValidDescriptor;
+var TYPE = '__tag__';
 
-// returns the displayName of a component
+// returns the displayName of a factory or a component
 function getDisplayName(x) {
-  var ctor = isComponent(x) ? x.constructor :     // Component
-    isComponent(x._descriptor) ? x._descriptor :  // ReactCompositeComponent
-    x;                                            // ReactDescriptor
-  return ctor.type ? ctor.type.displayName : null;
+  return x.type.displayName;
 }
 
-// given a type, extracts the struct within
-function unpackStruct(type) {
-  var kind = t.util.getKind(type);
-  if (kind === 'struct') {
-    return type;
+// given the arguments of a call to a React factory,
+// returns an object containing props and children
+// mantaining the original arguments untouched
+function objectify(args) {
+  // if there are no attributes jsx send null
+  var ret = args[0] ? t.util.mixin({}, args[0]) : {};
+  var len = args.length;
+  // apply the same logic of React: if there is only one
+  // child, avoid the array
+  if (len === 2) {
+    ret.children = getProps(args[1]);
+  } else if (len > 2) {
+    ret.children = getProps(Array.prototype.slice.call(args, 1));
   }
-  assert(kind === 'subtype', 'only structs and subtypes of structs are allowed');
-  return unpackStruct(type.meta.type);
+  return ret;
 }
 
-function unpack(x, omitType) {
+// given a component, extracts all props recursively
+// and add a special prop containing the tag name
+// to trace the origin
+function getProps(x) {
   if (t.Arr.is(x)) {
-    return x.map(unpack);
+    return x.map(getProps);
   }
   if (t.Obj.is(x)) {
     var ret = {};
+    if (x.props) {
+      ret[TYPE] = getDisplayName(x);
+    }
     var props = x.props || x;
     for (var k in props) {
       if (props.hasOwnProperty(k)) {
-        ret[k] = unpack(props[k]);
+        ret[k] = getProps(props[k]);
       }
-    }
-    if (x.props) {
-      ret[TYPE] = getDisplayName(x);
     }
     return ret;
   }
   return x;
 }
 
+// given a type, extracts the struct within
+function getStruct(type) {
+  var kind = t.util.getKind(type);
+  if (kind === 'struct') {
+    return type;
+  }
+  assert(kind === 'subtype', 'Invalid type: only structs and subtypes of structs are allowed');
+  return getStruct(type.meta.type);
+}
+
 //
-// asserts
+// assertEqual
 //
 
-function assertLeq(actualProps, type) {
-  var expectedProps = type.meta.props;
-  for (var k in actualProps) {
-    if (actualProps.hasOwnProperty(k)) {
+function assertLeq(props, type) {
+  var expectedProps = getStruct(type).meta.props;
+  for (var k in props) {
+    if (props.hasOwnProperty(k)) {
       if (!expectedProps.hasOwnProperty(k)) {
         t.fail(t.util.format('type `%s` does not handle property `%s`', t.util.getName(type), k));
       }
@@ -67,23 +84,67 @@ function assertLeq(actualProps, type) {
   }
 }
 
-function check(actualProps, type, opts) {
+function check(props, type, opts) {
   opts = opts || {};
-  var innerStruct = unpackStruct(type);
   if (opts.strict) {
-    assertLeq(actualProps, innerStruct);
+    assertLeq(props, type);
   }
-  return type(actualProps);
+  return type(props);
 }
 
 function assertEqual(props, type, opts) {
-  return check(unpack(props), type, opts);
+  assert(t.Obj.is(props), 'Invalid argument `props` of value `%j` supplied to `assertEqual`, expected and `Obj`', props);
+  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `assertEqual`, expected a type', type);
+  return check(getProps(props), type, opts);
 }
 
 //
-// DOM types
+// bind
+// 
+
+function bind(factory, type, opts) {
+  assert(ReactDescriptor.isValidFactory(factory), 'Invalid argument `factory` of value `%j` supplied to `bind()`, expected a factory.', factory);
+  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
+
+  var displayName = getDisplayName(factory);
+  assert(t.Str.is(displayName), 'Invalid argument `factory` of name `%s` supplied to `bind()`, the factory must have a displayName.', displayName);
+
+  function proxy() {
+    var props = objectify(arguments);
+    props[TYPE] = displayName;
+    check(props, type, opts);
+    // delegate rendering to the orginal factory
+    return factory.apply(factory, arguments);
+  }
+
+  // pretend to be a real React factory
+  proxy.prototype = new ReactDescriptor();
+
+  // attach references
+  proxy.factory = factory;
+  proxy.type = type;
+
+  return proxy;
+}
+
+//
+// React types
 //
 
+// represents an instance of a React factory
+var Component = t.irriducible('Component', ReactDescriptor.isValidDescriptor);
+
+var Key = t.union([t.Str, t.Num], 'Key');
+
+var Mountable = t.irriducible('Mountable', function (x) {
+  return typeof x === 'object' &&  typeof x.getDOMNode === 'function' && x.nodeType === 1;
+});
+
+var Ref = t.Str;
+
+var Renderable = t.irriducible('Renderable', isRenderable);
+
+// for all tags in React.DOM build a corresponding type
 var DOM = {};
 Object.keys(React.DOM).forEach(function (tagName) {
   var name = tagName.substring(0, 1).toUpperCase() + tagName.substring(1);
@@ -92,53 +153,17 @@ Object.keys(React.DOM).forEach(function (tagName) {
   DOM[name] = t.struct(props, name);
 });
 
-//
-// bind
-// 
-
-function bind(component, type, opts) {
-  
-  assert(t.Func.is(component), 'Invalid argument `component` of value `%j` supplied to `bind()`, expected a component.', component);
-  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
-  //assert(isType(innerStruct.meta.props[TYPE]), 'Invalid inner struct, it must have a `%s` prop.', TYPE);
-
-  var displayName = getDisplayName(component);
-  assert(t.Str.is(displayName), 'Invalid argument `component` of name `%s` supplied to `bind()`, the component must have a displayName.', displayName);
-
-  function Component(props) {
-    
-    // if there are no attributes React send null instead of {}
-    var value = props ? t.util.mixin({}, props) : {};
-    
-    var len = arguments.length;
-    // real props are in 0 position
-    if (len === 2) {
-      // if there is only a child, avoid an array
-      value.children = arguments[1];
-    } else if (len > 2) {
-      value.children = Array.prototype.slice.call(arguments, 1);
-    }
-    value.children = unpack(value.children);
-    value[TYPE] = displayName;
-
-    // check
-    check(value, type, opts);
-    
-    // delegate rendering to the orginal component
-    return component.apply(component, arguments);
-  }
-
-  // attach a reference
-  Component.component = component;
-  Component.type = type;
-
-  return Component;
-}
-
 t.react = {
-  DOM: DOM,
+  getDisplayName: getDisplayName,
+  objectify: objectify,
   assertEqual: assertEqual,
-  bind: bind
+  bind: bind,
+  Component: Component,
+  Key: Key,
+  Mountable: Mountable,
+  Ref: Ref,
+  Renderable: Renderable,
+  DOM: DOM
 };
 
 module.exports = t;

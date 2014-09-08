@@ -1,6 +1,10 @@
+'use strict';
+
+var ReactDescriptor = require('react/lib/ReactDescriptor');
+
 //
 // this is an extract of the React codebase
-// because the original isRenderable it's not reacheable
+// as the original isRenderable it's not reacheable
 //
 function isRenderable(propValue) {
   switch(typeof propValue) {

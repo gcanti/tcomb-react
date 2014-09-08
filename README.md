@@ -1,11 +1,14 @@
 % tcomb-react
 
-This library allows you to check the props of a React component (the children too).
+![tcomb logo](http://gcanti.github.io/resources/tcomb/logo.png)
 
-# Use cases
+This library allows you to add type checking to React components. You can check all props, including the children. You can even check the quality and quantity of nested components.
 
-- [Prototyping](#prototyping)
-- [Safe components](#safe-components)
+# Contents
+
+- [How to add type checking while prototyping](#prototyping)
+- [How to write safe components](#safe-components)
+- [Advanced usage](#advanced-usage)
 
 # Prototyping
 
@@ -104,15 +107,15 @@ React.renderComponent(
 
 # Safe components
 
-For third party components or if you want a more fine-grained control you can `bind` your component to a type. 
-The function `bind` returns a proxy component with the same interface of the original but with asserts included.
-In production you can choose to switch from the proxy component to the original one.
+To handle third party components or if you want a more fine-grained control you can `bind` your component to a type. 
+The function `bind` returns a proxy factory with the same interface of the original factory but with asserts included.
+In production you can choose to switch from the proxy factory to the original one.
 
 ```js
-bind(component, type, opts)
+bind(factory, type, opts)
 ```
 
-- `component` a React component descriptor
+- `factory` a React component factory
 - `type` a `struct` or a `subtype` of a `struct`
 - `opts` see [Options](#options)
 
@@ -133,12 +136,11 @@ var Anchor = React.createClass({
 module.exports = Anchor;
 ```
 
-### 2. Define the type of the props
+### 2. Define the type of the props and `bind`
 
 ```js
 // safe-component.js
 var AnchorProps = struct({
-  _tag: enums.of('Alert'), // this must match the component displayName
   href: Href,
   children: Str
 });
@@ -148,7 +150,7 @@ var Anchor = require('unsafe-component.js');
 module.exports = t.react.bind(Anchor, AnchorProps);
 ```
 
-### 3. Use the proxy safely
+### 3. Safely use the proxy factory
 
 ```js
 // app.js
@@ -161,11 +163,15 @@ React.renderComponent(
 , mountNode);
 ```
 
-You can find more examples of `bind` in the [tcomb-react-bootstrap](https://github.com/gcanti/tcomb-react-bootstrap) project.
+You can find extensive examples of the `bind` method in the [tcomb-react-bootstrap](https://github.com/gcanti/tcomb-react-bootstrap) project.
 
-# Tags
+# Advanced usage
 
-For each `HTML` tag, there is a ready type in the `DOM` namespace.
+This library exports a bunch of common React types:
+
+## Tags
+
+For each `React.DOM` factory, there is a type in the `DOM` namespace.
 Say you want modify the first example to accept only a `span` child:
 
 ```js
@@ -184,3 +190,11 @@ React.renderComponent(
   <Anchor href="#section">content</Anchor>
 , mountNode);
 ```
+
+## Misc
+
+- `Component`: represents a component, i.e. an instance of a React factory
+- `Key`: represents the `key` attribute
+- `Mountable`: represents a mounting node
+- `Ref`: represents the `ref` attribute
+- `Renderable`: represents everything renderable in a component
