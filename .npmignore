@@ -1,6 +1,11 @@
+.*
+*.log
+bower.json
+Gruntfile.js
+tcomb.sjs
 node_modules
-npm-debug.log
-example
 test
-.gitattributes
-.gitignore
+coverage
+dev
+playground
+examples

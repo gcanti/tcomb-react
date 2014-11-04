@@ -1,3 +1,8 @@
+v0.1.2
+
+- upgraded to tcomb-validation v0.1.3
+- upgraded to react v0.11.2
+
 v0.1.1
 
 - fix #3

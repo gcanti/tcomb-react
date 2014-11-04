@@ -99,16 +99,16 @@ describe('assertEqual(props, type, [opts])', function () {
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor(null, "title"));
-      }, 'Invalid type argument `value` of value `undefined` supplied to `Str`, expected a `Str`.');
+      }, 'Invalid `undefined` supplied to `Str`');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}));
-      }, 'Invalid type argument `value` of value `undefined` supplied to `Str`, expected a `Str`.');
+      }, 'Invalid `undefined` supplied to `Str`');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "http://mydomain.com"}, "title"));
-      }, 'Invalid type argument `value` of value `"http://mydomain.com"` supplied to `Href`, expected a valid value for the predicate.');
+      }, 'Invalid `http://mydomain.com` supplied to `Href`, insert a valid value for the subtype');
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}, React.DOM.span(null, "title")));
-      }, 'Invalid type argument `value` of value `{"__tag__":"span","children":"title"}` supplied to `Str`, expected a `Str`.');
+      }, 'Invalid `[object Object]` supplied to `Str`');
     });
   });
 
@@ -139,10 +139,10 @@ describe('assertEqual(props, type, [opts])', function () {
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Component({foo: null, bar: 'b'}));
-      }, 'Invalid type argument `value` of value `{"foo":null,"bar":"b"}` supplied to `Props`, expected a valid value for the predicate.');
+      }, 'Invalid `[object Object]` supplied to `Props`, insert a valid value for the subtype');
       throwsWithMessage(function () {
         React.renderComponentToString(Component({foo: 'a', bar: null}));
-      }, 'Invalid type argument `value` of value `{"foo":"a","bar":null}` supplied to `Props`, expected a valid value for the predicate.');
+      }, 'Invalid `[object Object]` supplied to `Props`, insert a valid value for the subtype');
     });
   });
 
@@ -168,7 +168,7 @@ describe('assertEqual(props, type, [opts])', function () {
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Anchor({href: "#section"}, 'content'));
-      }, 'Invalid type argument `value` of value `"content"` supplied to `Span`, expected an `Obj`.');
+      }, 'Invalid `content` supplied to `Span`, expected an `Obj`');
     });
   });
 
@@ -213,7 +213,7 @@ describe('bind(factory, type, [opts])', function () {
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Alert({bsStyle: "unknown"}, 'hello'));
-      }, 'Invalid type argument `value` of value `"unknown"` supplied to `BsStyle`, expected a valid enum.');
+      }, 'Invalid `unknown` supplied to `BsStyle`, expected one of ["info","success","warning","danger"]');
     });
   });
 
@@ -237,10 +237,10 @@ describe('bind(factory, type, [opts])', function () {
     it('should throw when props are incorrect', function () {
       throwsWithMessage(function () {
         React.renderComponentToString(Alert({bsStyle: "unknown"}, 'hello'));
-      }, 'Invalid type argument `value` of value `"unknown"` supplied to `BsStyle`, expected a valid enum.');
+      }, 'Invalid `unknown` supplied to `BsStyle`, expected one of ["info","success","warning","danger"]');
       throwsWithMessage(function () {
         React.renderComponentToString(Alert({bsStyle: "warning", dismissAfter: 10}, 'hello'));
-      }, 'Invalid type argument `value` of value `{"bsStyle":"warning","dismissAfter":10,"children":"hello","__tag__":"Alert"}` supplied to `Alert`, expected a valid value for the predicate.');
+      }, 'Invalid `[object Object]` supplied to `Alert`, insert a valid value for the subtype');
     });
   });
 

@@ -6,7 +6,7 @@ var ReactDescriptor = require('react/lib/ReactDescriptor');
 var isRenderable = require('./isRenderable');
 
 var assert = t.assert;
-var isType = t.util.isType;
+var Type = t.Type;
 
 //
 // utils
@@ -94,7 +94,7 @@ function check(props, type, opts) {
 
 function assertEqual(props, type, opts) {
   assert(t.Obj.is(props), 'Invalid argument `props` of value `%j` supplied to `assertEqual`, expected and `Obj`', props);
-  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `assertEqual`, expected a type', type);
+  assert(Type.is(type), 'Invalid argument `type` of value `%j` supplied to `assertEqual`, expected a type', type);
   return check(getProps(props), type, opts);
 }
 
@@ -104,7 +104,7 @@ function assertEqual(props, type, opts) {
 
 function bind(factory, type, opts) {
   assert(ReactDescriptor.isValidFactory(factory), 'Invalid argument `factory` of value `%j` supplied to `bind()`, expected a factory.', factory);
-  assert(isType(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
+  assert(Type.is(type), 'Invalid argument `type` of value `%j` supplied to `bind()`, expected a type.', type);
 
   var displayName = getDisplayName(factory);
   assert(t.Str.is(displayName), 'Invalid argument `factory` of name `%s` supplied to `bind()`, the factory must have a displayName.', displayName);
