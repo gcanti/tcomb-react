@@ -1,6 +1,4 @@
-% tcomb-react
-
-![tcomb logo](http://gcanti.github.io/resources/tcomb/logo.png)
+**Note**. This library officially supports React v0.11. React v0.12 support is coming soon.
 
 This library allows you to add type checking to React components. You can check all props, including the children. You can even check the quality and quantity of nested components.
 
@@ -111,7 +109,7 @@ React.renderComponent(
 
 # Safe components
 
-To handle third party components or if you want a more fine-grained control you can `bind` your component to a type. 
+To handle third party components or if you want a more fine-grained control you can `bind` your component to a type.
 The function `bind` returns a proxy factory with the same interface of the original factory but with asserts included.
 In production you can choose to switch from the proxy factory to the original one.
 
