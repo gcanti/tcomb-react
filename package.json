@@ -4,7 +4,7 @@
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
-    "dev": "watchify -t [ reactify --es6 ] dev/dev.jsx -o dev/dev.js -v -x react"
+    "dev": "watchify -t reactify dev/dev.jsx -o dev/dev.js -v -x react"
   },
   "repository": {
     "type": "git",
@@ -18,10 +18,14 @@
   "homepage": "https://github.com/gcanti/tcomb-react",
   "dependencies": {
     "react": "^0.12.0",
-    "tcomb-validation": "^0.3.0"
+    "react-tools": "^0.12.2",
+    "tcomb-validation": "^0.3.0",
+    "var": "^0.1.1"
   },
   "devDependencies": {
-    "reactify": "^0.17.1"
+    "react-filtered-multiselect": "^0.2.0",
+    "reactify": "^0.17.1",
+    "tcomb-form": "git://github.com/gcanti/tcomb-form.git#master"
   },
   "tags": [
     "tcomb",

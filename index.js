@@ -1,11 +1,13 @@
 'use strict';
 
+var React = require('react');
 var t = require('tcomb-validation');
+
+var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 
 function getPropTypes(spec) {
 
   var propTypes = {};
-  // FIXME type must be a struct
   var props = spec.meta.props;
 
   Object.keys(props).forEach(function (k) {
@@ -18,7 +20,7 @@ function getPropTypes(spec) {
       var value = values[name];
       var err = t.validate(value, type).firstError();
       if (err) {
-        return new Error(t.util.format('Invalid prop `%s` = `%s` supplied to `%s`, should be a `%s`', name, value, displayName, t.util.getName(type)));
+        return new Error(t.util.format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', name, value, displayName, t.util.getName(type)));
       }
     };
 
@@ -27,27 +29,25 @@ function getPropTypes(spec) {
   return propTypes;
 }
 
-function Mixin(spec, opts) {
-
-  opts = opts || {};
-  var name = opts.name || Mixin.defaultName || 'TcombPropTypes';
+function Mixin(spec) {
 
   if (t.Obj.is(spec)) {
-    spec = t.struct(spec, name);
+    spec = t.struct(spec);
   }
 
-  var ret = {
+  return {
     propTypes: getPropTypes(spec),
-    statics: {}
+    statics: {
+      // attach the struct to component constructor as a static property
+      TcombPropTypes: spec
+    }
   };
-
-  // attach the struct to component constructor as a static property
-  ret.statics[name] = spec;
-
-  return ret;
 }
 
-module.exports = {
+t.react = {
+  getPropTypes: getPropTypes,
   Mixin: Mixin,
-  getPropTypes: getPropTypes
+  ReactElement: ReactElement
 };
+
+module.exports = t;
