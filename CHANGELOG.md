@@ -1,3 +1,7 @@
+v0.2.0
+
+- complete refactoring
+
 v0.1.2
 
 - upgraded to tcomb-validation v0.1.3
