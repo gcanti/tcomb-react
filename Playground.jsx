@@ -33,13 +33,11 @@ var Playground = React.createClass({
     };
   },
 
-  show: function () {
-    setTimeout(function () {
-      var value = this.refs.form.getValue();
-      if (value) {
-        React.render(<this.props.component {...value} />, this.refs.preview.getDOMNode());
-      }
-    }.bind(this), 0);
+  show: function (rawValue) {
+    var value = this.refs.form.getValue();
+    if (value) {
+      React.render(<this.props.component {...value} />, this.refs.preview.getDOMNode());
+    }
   },
 
   render: function () {
