@@ -5,7 +5,7 @@ var t = require('tcomb-validation');
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
-  return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x);
+  return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
 });
 
 function toPropTypes(spec) {
