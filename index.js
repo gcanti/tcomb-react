@@ -8,23 +8,29 @@ var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 function toPropTypes(spec) {
 
   var propTypes = {};
-  var props = spec.meta.props;
 
-  Object.keys(props).forEach(function (k) {
+  if (process.env.NODE_ENV !== 'production') {
 
-    // React custom prop validators
-    // see http://facebook.github.io/react/docs/reusable-components.html
+    var props = spec.meta.props;
 
-    propTypes[k] = function (values, name, displayName) {
-      var type = props[name];
-      var value = values[name];
-      var err = t.validate(value, type).firstError();
-      if (err) {
-        return new Error(t.util.format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', name, value, displayName, t.util.getName(type)));
-      }
-    };
+    Object.keys(props).forEach(function (k) {
 
-  });
+      // React custom prop validators
+      // see http://facebook.github.io/react/docs/reusable-components.html
+
+      propTypes[k] = function (values, name, displayName) {
+        var type = props[name];
+        var value = values[name];
+        var isValid = t.validate(value, type).isValid();
+        if (!isValid) {
+          var message = t.util.format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', name, value, displayName, t.util.getName(type));
+          return new Error(message);
+        }
+      };
+
+    });
+
+  }
 
   return propTypes;
 }
