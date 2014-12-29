@@ -9,7 +9,9 @@ var t = require('tcomb-form');
 t.form.config.transformers.Renderable = {
 
   format: function (element) {
-    return t.react.ReactElement.is(element) ? React.renderToStaticMarkup(element) : element;
+    return t.react.ReactElement.is(element) ? React.renderToStaticMarkup(element) :
+      t.Nil.is(element) ? null :
+      String(element);
   },
 
   parse: function (jsx) {
