@@ -4,6 +4,9 @@ var React = require('react');
 var t = require('tcomb-validation');
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
+var Renderable = t.irreducible('Renderable', function (x) {
+  return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x);
+});
 
 function toPropTypes(spec) {
 
@@ -11,6 +14,9 @@ function toPropTypes(spec) {
 
   if (process.env.NODE_ENV !== 'production') {
 
+    if (t.Obj.is(spec)) {
+      spec = t.struct(spec);
+    }
     var props = spec.meta.props;
 
     Object.keys(props).forEach(function (k) {
@@ -44,7 +50,8 @@ function Mixin(spec) {
   return {
     propTypes: toPropTypes(spec),
     statics: {
-      // attach the struct to component constructor as a static property
+      // attach the spec to component constructor as a static property
+      // to allow component runtime reflection
       TcombPropTypes: spec
     }
   };
@@ -53,7 +60,8 @@ function Mixin(spec) {
 t.react = {
   toPropTypes: toPropTypes,
   Mixin: Mixin,
-  ReactElement: ReactElement
+  ReactElement: ReactElement,
+  Renderable: Renderable
 };
 
 module.exports = t;

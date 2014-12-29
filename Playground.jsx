@@ -1,20 +1,22 @@
 'use strict';
 
 var React = require('react');
-var reactTools = require('react-tools');
+var transform = require('react-tools').transform;
 var t = require('tcomb-form');
 
-t.form.config.transformers.ReactElement = {
+// add a custom trasformer for Renderable to tcomb-form config
+// see http://gcanti.github.io/tcomb-form/guide/index.html#transformers
+t.form.config.transformers.Renderable = {
 
-  format: function (value) {
-    return t.react.ReactElement.is(value) ? React.renderToStaticMarkup(value) : value;
+  format: function (element) {
+    return t.react.ReactElement.is(element) ? React.renderToStaticMarkup(element) : element;
   },
 
-  parse: function (value) {
+  parse: function (jsx) {
     try {
-      return eval(reactTools.transform(value));
+      return eval(transform(jsx));
     } catch (e) {
-      return value;
+      return jsx;
     }
   }
 
@@ -24,10 +26,7 @@ var Playground = React.createClass({
 
   getInitialState: function () {
     var PropTypes = this.props.component.TcombPropTypes;
-    var Form = t.form.create(PropTypes, {
-      value: this.props.props,
-      auto: 'labels'
-    });
+    var Form = t.form.create(PropTypes, this.props.options);
     return {
       Form: Form
     };
@@ -47,6 +46,7 @@ var Playground = React.createClass({
         <h3>Preview</h3>
         <div ref="preview"></div>
         <h3>Props</h3>
+        <p><b>Hint</b>: Changes will be reflected in the preview</p>
         <this.state.Form ref="form" onChange={this.show} />
         <button onClick={this.show}>Show</button>
       </div>
