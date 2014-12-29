@@ -25,11 +25,11 @@ function toPropTypes(type, opts) {
       var type = props[k];
       var name = t.util.getName(type);
 
-      function checkPropType(values, name, displayName) {
-        var value = values[k];
+      function checkPropType(values, prop, displayName) {
+        var value = values[prop];
         var isValid = t.validate(value, type).isValid();
         if (!isValid) {
-          var message = format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', k, value, displayName, name);
+          var message = format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', prop, value, displayName, name);
           if (opts.debug === true) {
             t.fail(message);
           }
