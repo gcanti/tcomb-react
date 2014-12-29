@@ -2,37 +2,44 @@
 
 var React = require('react');
 var t = require('tcomb-validation');
+var format = t.util.format;
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
   return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
 });
 
-function toPropTypes(spec) {
+function toPropTypes(type, opts) {
 
   var propTypes = {};
 
   if (process.env.NODE_ENV !== 'production') {
 
-    if (t.Obj.is(spec)) {
-      spec = t.struct(spec);
-    }
-    var props = spec.meta.props;
+    opts = opts || {};
+    var props = type.meta.props;
 
     Object.keys(props).forEach(function (k) {
 
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
+      var type = props[k];
+      var name = t.util.getName(type);
 
-      propTypes[k] = function (values, name, displayName) {
-        var type = props[name];
-        var value = values[name];
+      function checkPropType(values, name, displayName) {
+        var value = values[k];
         var isValid = t.validate(value, type).isValid();
         if (!isValid) {
-          var message = t.util.format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', name, value, displayName, t.util.getName(type));
+          var message = format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', k, value, displayName, name);
+          if (opts.debug === true) {
+            t.fail(message);
+          }
           return new Error(message);
         }
-      };
+      }
+
+      checkPropType.displayName = format('Invalid prop `%s`, should be `%s`', k, name);
+
+      propTypes[k] = checkPropType;
 
     });
 
@@ -41,25 +48,8 @@ function toPropTypes(spec) {
   return propTypes;
 }
 
-function Mixin(spec) {
-
-  if (t.Obj.is(spec)) {
-    spec = t.struct(spec);
-  }
-
-  return {
-    propTypes: toPropTypes(spec),
-    statics: {
-      // attach the spec to component constructor as a static property
-      // to allow component runtime reflection
-      TcombPropTypes: spec
-    }
-  };
-}
-
 t.react = {
   toPropTypes: toPropTypes,
-  Mixin: Mixin,
   ReactElement: ReactElement,
   ReactNode: ReactNode
 };

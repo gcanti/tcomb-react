@@ -27,8 +27,7 @@ t.form.config.transformers.ReactNode = {
 var Playground = React.createClass({
 
   getInitialState: function () {
-    var PropTypes = this.props.component.TcombPropTypes;
-    var Form = t.form.create(PropTypes, this.props.options);
+    var Form = t.form.create(this.props.type, this.props.options);
     return {
       Form: Form
     };
