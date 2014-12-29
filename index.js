@@ -5,7 +5,7 @@ var t = require('tcomb-validation');
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 
-function getPropTypes(spec) {
+function toPropTypes(spec) {
 
   var propTypes = {};
   var props = spec.meta.props;
@@ -36,7 +36,7 @@ function Mixin(spec) {
   }
 
   return {
-    propTypes: getPropTypes(spec),
+    propTypes: toPropTypes(spec),
     statics: {
       // attach the struct to component constructor as a static property
       TcombPropTypes: spec
@@ -45,7 +45,7 @@ function Mixin(spec) {
 }
 
 t.react = {
-  getPropTypes: getPropTypes,
+  toPropTypes: toPropTypes,
   Mixin: Mixin,
   ReactElement: ReactElement
 };
