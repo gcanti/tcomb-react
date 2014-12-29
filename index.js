@@ -4,7 +4,7 @@ var React = require('react');
 var t = require('tcomb-validation');
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
-var Renderable = t.irreducible('Renderable', function (x) {
+var ReactNode = t.irreducible('ReactNode', function (x) {
   return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x);
 });
 
@@ -61,7 +61,7 @@ t.react = {
   toPropTypes: toPropTypes,
   Mixin: Mixin,
   ReactElement: ReactElement,
-  Renderable: Renderable
+  ReactNode: ReactNode
 };
 
 module.exports = t;

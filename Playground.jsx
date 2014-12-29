@@ -4,9 +4,9 @@ var React = require('react');
 var transform = require('react-tools').transform;
 var t = require('tcomb-form');
 
-// add a custom trasformer for Renderable to tcomb-form config
+// add a custom trasformer for ReactNode to tcomb-form config
 // see http://gcanti.github.io/tcomb-form/guide/index.html#transformers
-t.form.config.transformers.Renderable = {
+t.form.config.transformers.ReactNode = {
 
   format: function (element) {
     return t.react.ReactElement.is(element) ? React.renderToStaticMarkup(element) :
