@@ -51,7 +51,7 @@ React.render(
 );
 ```
 
-See the demo live [here](https://gcanti.github.io/tcomb-react/docs/demo/alert/index.html).
+See the demo live [here](https://gcanti.github.io/tcomb-react/demo/alert/index.html).
 
 # Comparison table
 
