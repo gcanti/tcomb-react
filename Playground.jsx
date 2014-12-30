@@ -28,8 +28,8 @@ function defaultTemplate(locals) {
 var PlaygroundProps = t.struct({
   component: t.Func,
   template: t.maybe(t.Func),
-  type: t.Type,
-  options: t.maybe(t.Obj)
+  props: t.Type,
+  form: t.maybe(t.Obj)
 });
 
 var Playground = React.createClass({
@@ -38,7 +38,7 @@ var Playground = React.createClass({
   propTypes: toPropTypes(PlaygroundProps, {debug: true}),
 
   getInitialState: function () {
-    var Form = t.form.create(this.props.type, this.props.options);
+    var Form = t.form.create(this.props.props, this.props.form);
     return {
       Form: Form
     };

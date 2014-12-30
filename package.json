@@ -4,7 +4,7 @@
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
-    "dev": "watchify -t reactify dev/dev.jsx -o dev/dev.js -v -x react"
+    "docs": "watchify -t reactify docs/demo/alert/src.js -o docs/demo/alert/bundle.js -v -x react"
   },
   "repository": {
     "type": "git",
