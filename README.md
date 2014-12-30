@@ -38,7 +38,7 @@ var Alert = React.createClass({
 
 # Build a component playground
 
-Building a playground for the `Alert` component is simple as writing:
+See the demo live [here](https://gcanti.github.io/tcomb-react/demo/alert/index.html).
 
 ```js
 var Playground = require('tcomb-react/Playground.jsx');
@@ -50,8 +50,6 @@ React.render(
   document.getElementById('app')
 );
 ```
-
-See the demo live [here](https://gcanti.github.io/tcomb-react/demo/alert/index.html).
 
 # Comparison table
 
