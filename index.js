@@ -2,7 +2,7 @@
 
 var React = require('react');
 var t = require('tcomb-validation');
-var format = t.util.format;
+var format = t.format;
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
@@ -17,12 +17,12 @@ function toPropTypes(type, opts) {
   if (process.env.NODE_ENV !== 'production') {
 
     opts = opts || {};
-    var isSubtype = (t.util.getKind(type) === 'subtype');
+    var isSubtype = (type.meta.kind === 'subtype');
     var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
 
     Object.keys(props).forEach(function (k) {
 
-      var name = t.util.getName(props[k]);
+      var name = t.getTypeName(props[k]);
 
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
