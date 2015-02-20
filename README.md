@@ -43,10 +43,16 @@ See the demo live [here](https://gcanti.github.io/tcomb-react/demo/alert/index.h
 ```js
 var Playground = require('tcomb-react/Playground.jsx');
 
+// tcomb-form options
+var formOptions = {
+  legend: 'My legend'
+};
+
 React.render(
   <Playground
     component={Alert}
-    props={AlertProps} />,
+    props={AlertProps}
+    form={formOptions} />,
   document.getElementById('app')
 );
 ```

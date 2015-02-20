@@ -6,6 +6,8 @@ var transform = require('react-tools').transform;
 var t = require('tcomb-form');
 var toPropTypes = require('.').react.toPropTypes;
 
+var Form = t.form.Form;
+
 function defaultTemplate(locals) {
   return (
     React.createElement("div", {className: "row"}, 
@@ -38,26 +40,21 @@ var Playground = React.createClass({displayName: "Playground",
   // dogfooding
   propTypes: toPropTypes(PlaygroundProps, {debug: true}),
 
-  getInitialState: function () {
-    var Form = t.form.create(this.props.props, this.props.form);
-    return {
-      Form: Form
-    };
-  },
-
-  show: function (rawValue) {
-    var value = this.refs.form.getValue();
+  onChange: function (value) {
     if (value) {
       React.render(React.createElement(this.props.component, React.__spread({},  value)), this.refs.preview.getDOMNode());
     }
+  },
+
+  getValue: function (raw) {
+    return this.refs.form.getValue(raw);
   },
 
   render: function () {
 
     var locals = {
       displayName: this.props.component.displayName,
-      Form: React.createElement(this.state.Form, {ref: "form", onChange: this.show}),
-      onChange: this.show,
+      Form: React.createElement(Form, {ref: "form", type: this.props.props, options: this.props.form, onChange: this.onChange}),
       previewRef: 'preview'
     };
 
@@ -117,30 +114,27 @@ var Alert = React.createClass({displayName: "Alert",
 
 var Playground = require('../../../Playground.jsx');
 
-var form = {
-  auto: 'labels',
-  value: {
-    type: 'info',
-    children: React.createElement("b", null, "You can use JSX in the form")
-  }
+var formOptions = {
+  legend: 'My legend'
 };
 
 var playground = React.render(
   React.createElement(Playground, {
     component: Alert, 
     props: AlertProps, 
-    form: form}),
+    form: formOptions}),
   document.getElementById('app')
 );
 
-playground.show();
+playground.getValue();
+
 },{"../../../.":"/Users/giulio/Documents/Projects/github/tcomb-react/index.js","../../../Playground.jsx":"/Users/giulio/Documents/Projects/github/tcomb-react/Playground.jsx","react":"react"}],"/Users/giulio/Documents/Projects/github/tcomb-react/index.js":[function(require,module,exports){
 (function (process){
 'use strict';
 
 var React = require('react');
 var t = require('tcomb-validation');
-var format = t.util.format;
+var format = t.format;
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
@@ -155,12 +149,12 @@ function toPropTypes(type, opts) {
   if (process.env.NODE_ENV !== 'production') {
 
     opts = opts || {};
-    var isSubtype = (t.util.getKind(type) === 'subtype');
+    var isSubtype = (type.meta.kind === 'subtype');
     var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
 
     Object.keys(props).forEach(function (k) {
 
-      var name = t.util.getName(props[k]);
+      var name = t.getTypeName(props[k]);
 
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
@@ -13510,838 +13504,19 @@ exports.getVisitorsBySet = getVisitorsBySet;
 exports.getAllVisitors = getAllVisitors;
 exports.transformVisitors = transformVisitors;
 
-},{"./transforms/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/vendor/fbtransform/transforms/react.js","./transforms/reactDisplayName":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/vendor/fbtransform/transforms/reactDisplayName.js","jstransform/visitors/es6-arrow-function-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-arrow-function-visitors.js","jstransform/visitors/es6-class-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-class-visitors.js","jstransform/visitors/es6-destructuring-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-destructuring-visitors.js","jstransform/visitors/es6-object-concise-method-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-object-concise-method-visitors.js","jstransform/visitors/es6-object-short-notation-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-object-short-notation-visitors.js","jstransform/visitors/es6-rest-param-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-rest-param-visitors.js","jstransform/visitors/es6-template-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-template-visitors.js","jstransform/visitors/es7-spread-property-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es7-spread-property-visitors.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/cx.js":[function(require,module,exports){
-/**
- * Copyright 2013-2014, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- *
- * @providesModule cx
- */
-
-/**
- * This function is used to mark string literals representing CSS class names
- * so that they can be transformed statically. This allows for modularization
- * and minification of CSS class names.
- *
- * In static_upstream, this function is actually implemented, but it should
- * eventually be replaced with something more descriptive, and the transform
- * that is used in the main stack should be ported for use elsewhere.
- *
- * @param string|object className to modularize, or an object of key/values.
- *                      In the object case, the values are conditions that
- *                      determine if the className keys should be included.
- * @param [string ...]  Variable list of classNames in the string case.
- * @return string       Renderable space-separated CSS className.
- */
-function cx(classNames) {
-  if (typeof classNames == 'object') {
-    return Object.keys(classNames).filter(function(className) {
-      return classNames[className];
-    }).join(' ');
-  } else {
-    return Array.prototype.join.call(arguments, ' ');
-  }
-}
-
-module.exports = cx;
-
-},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/index.js":[function(require,module,exports){
+},{"./transforms/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/vendor/fbtransform/transforms/react.js","./transforms/reactDisplayName":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/vendor/fbtransform/transforms/reactDisplayName.js","jstransform/visitors/es6-arrow-function-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-arrow-function-visitors.js","jstransform/visitors/es6-class-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-class-visitors.js","jstransform/visitors/es6-destructuring-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-destructuring-visitors.js","jstransform/visitors/es6-object-concise-method-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-object-concise-method-visitors.js","jstransform/visitors/es6-object-short-notation-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-object-short-notation-visitors.js","jstransform/visitors/es6-rest-param-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-rest-param-visitors.js","jstransform/visitors/es6-template-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es6-template-visitors.js","jstransform/visitors/es7-spread-property-visitors":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react-tools/node_modules/jstransform/visitors/es7-spread-property-visitors.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/index.js":[function(require,module,exports){
 var t = require('./lib');
 
-// plug bootstrap style
-t.form.config.templates = require('./lib/templates/bootstrap');
+// plug bootstrap skin
+t.form.config.templates = require('./lib/skins/bootstrap');
 
 module.exports = t;
-},{"./lib":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/index.js","./lib/templates/bootstrap":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/templates/bootstrap.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js":[function(require,module,exports){
-'use strict';
-
-var api = require('./protocols/api');
-
-var i18n = new api.I18n({
-  optional: ' (optional)',
-  add: 'Add',
-  remove: 'Remove',
-  up: 'Up',
-  down: 'Down'
-});
-
-module.exports = {
-  i18n: i18n
-};
-},{"./protocols/api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/api.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/create.js":[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var api = require('./protocols/api');
-var config = require('./config');
-var getFactory = require('./factories').getFactory;
-var getReport = require('./util/getReport');
-
-function create(type, opts) {
-
-  var factory = getFactory(type, opts);
-
-  var Form = React.createClass({
-
-    displayName: 'Form',
-
-    // the public api returns `null` if validation failed
-    // unless the optional boolean argument `raw` is set to `true`
-    getValue: function (raw) {
-      var result = this.refs.input.getValue();
-      if (raw === true) { return result; }
-      if (result.isValid()) { return result.value; }
-      return null;
-    },
-
-    render: function () {
-
-      var ctx = new api.Context({
-        auto: api.Auto.defaultValue,
-        i18n: config.i18n,
-        label: null,
-        name: '',
-        report: getReport(type),
-        templates: config.templates,
-        value: this.props.value
-      });
-      var Component = factory(opts, ctx);
-
-      return React.createElement(Component, {
-        onChange: this.props.onChange,
-        ref: 'input'
-      });
-    }
-  });
-
-  return Form;
-}
-
-module.exports = create;
-
-},{"./config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","./factories":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/factories.js","./protocols/api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/api.js","./util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","react":"react"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/factories.js":[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var t = require('tcomb-validation');
-var api = require('./protocols/api');
-var theme = require('./protocols/theme');
-var config = require('./config');
-var compile = require('uvdom/react').compile;
-var getError = require('./util/getError');
-var getOptionsOfEnum = require('./util/getOptionsOfEnum');
-var getReport = require('./util/getReport');
-var humanize = require('./util/humanize');
-var merge = require('./util/merge');
-var move = require('./util/move');
-var uuid = require('./util/uuid');
-
-var assert = t.assert;
-var Nil = t.Nil;
-var mixin = t.util.mixin;
-var ValidationResult = t.ValidationResult;
-var getKind = t.util.getKind;
-var getName = t.util.getName;
-var Context = api.Context;
-
-function getFactory(type, opts) {
-
-  opts = opts || {};
-
-  // [extension point]
-  if (opts.factory) {
-    assert(t.Func.is(opts.factory), 'invalid `factory` option, must be a function with signature (opts: Obj, ctx: ?Context) -> ReactClass');
-    return opts.factory;
-  }
-
-  // get factory by type
-  type = t.Type(type);
-  var kind = getKind(type);
-  if (config.kinds.hasOwnProperty(kind)) {
-    return config.kinds[kind](type, opts);
-  }
-
-  t.fail(t.util.format('cannot handle type %s', getName(type)));
-}
-
-//
-// factories
-//
-
-function textbox(opts, ctx) {
-
-  opts = new api.Textbox(opts || {});
-
-  var label = !Nil.is(opts.label) ? opts.label :
-    ctx.auto === 'labels' ? ctx.getDefaultLabel() :
-    null;
-
-  // labels have higher priority
-  var placeholder = null;
-  if (!label && ctx.auto !== 'none') {
-    placeholder = !Nil.is(opts.placeholder) ? opts.placeholder : ctx.getDefaultLabel();
-  }
-
-  var name = opts.name || ctx.name;
-
-  var value = !Nil.is(opts.value) ? opts.value : !Nil.is(ctx.value) ? ctx.value : null;
-
-  var transformer = opts.transformer || config.transformers[getName(ctx.report.innerType)];
-
-  var template = opts.template || ctx.templates.textbox;
-
-  return React.createClass({
-
-    displayName: 'Textbox',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onChange: function (value) {
-      if (transformer) {
-        value = transformer.parse(value);
-      }
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-      var value = this.state.value;
-      // handle white spaces
-      if (t.Str.is(value) && value.trim() === '') {
-        value = null;
-      }
-      var result = t.validate(value, ctx.report.type);
-      this.setState({
-        hasError: !result.isValid(),
-        value: result.value
-      });
-      return result;
-    },
-
-    render: function () {
-
-      var value = this.state.value;
-      if (transformer) {
-        value = transformer.format(value);
-      }
-
-      var id = opts.id || this._rootNodeID || uuid();
-
-      return compile(template(new theme.Textbox({
-        config: merge(ctx.config, opts.config),
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        id: id,
-        label: label,
-        name: name,
-        onChange: this.onChange,
-        placeholder: placeholder,
-        type: opts.type || 'text',
-        value: value
-      })));
-    }
-  });
-}
-
-function checkbox(opts, ctx) {
-
-  opts = new api.Checkbox(opts || {});
-
-  // checkboxes must have a label
-  var label = opts.label || ctx.getDefaultLabel();
-
-  var name = opts.name || ctx.name;
-
-  var value = t.Bool.is(opts.value) ? opts.value : t.Bool.is(ctx.value) ? ctx.value : false;
-
-  var template = opts.template || ctx.templates.checkbox;
-
-  return React.createClass({
-
-    displayName: 'Checkbox',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onChange: function (value) {
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-      var result = t.validate(this.state.value, ctx.report.type);
-      this.setState({
-        hasError: !result.isValid(),
-        value: result.value
-      });
-      return result;
-    },
-
-    render: function () {
-
-      var id = opts.id || this._rootNodeID || uuid();
-
-      return compile(template(new theme.Checkbox({
-        config: merge(ctx.config, opts.config),
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        id: id,
-        label: label,
-        name: name,
-        onChange: this.onChange,
-        value: this.state.value
-      })));
-    }
-  });
-}
-
-function select(opts, ctx) {
-
-  opts = new api.Select(opts || {});
-
-  var Enum = ctx.report.innerType;
-
-  // handle `multiple` attribute
-  var multiple = false;
-  if (getKind(Enum) === 'list') {
-    multiple = true;
-    Enum = getReport(Enum.meta.type).innerType;
-  }
-
-  var label = !Nil.is(opts.label) ? opts.label :
-    ctx.auto === 'labels' ? ctx.getDefaultLabel() :
-    null;
-
-  var name = opts.name || ctx.name;
-
-  var value = !Nil.is(opts.value) ? opts.value :
-    !Nil.is(ctx.value) ? ctx.value :
-    multiple ? [] : null;
-
-  var options = opts.options ? opts.options.slice() : getOptionsOfEnum(Enum);
-
-  // sort opts
-  if (opts.order) {
-    options.sort(api.Order.getComparator(opts.order));
-  }
-
-  // add a `null` option in first position
-  var nullOption = opts.nullOption || {value: '', text: '-'};
-  if (!multiple) {
-    options.unshift(nullOption);
-  }
-
-  var template = opts.template || ctx.templates.select;
-
-  return React.createClass({
-
-    displayName: 'Select',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onChange: function (value) {
-      if (value === nullOption.value) {
-        value = null;
-      }
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-      var result = t.validate(this.state.value, ctx.report.type);
-      this.setState({
-        hasError: !result.isValid(),
-        value: result.value
-      });
-      return result;
-    },
-
-    render: function () {
-
-      var id = opts.id || this._rootNodeID || uuid();
-
-      return compile(template(new theme.Select({
-        config: merge(ctx.config, opts.config),
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        id: id,
-        label: label,
-        name: name,
-        multiple: multiple,
-        onChange: this.onChange,
-        options: options,
-        value: this.state.value
-      })));
-    }
-  });
-}
-
-function radio(opts, ctx) {
-
-  opts = new api.Radio(opts || {});
-
-  var label = !Nil.is(opts.label) ? opts.label :
-    ctx.auto === 'labels' ? ctx.getDefaultLabel() :
-    null;
-
-  var name = opts.name || ctx.name;
-
-  var value = !Nil.is(opts.value) ? opts.value : !Nil.is(ctx.value) ? ctx.value : null;
-
-  var options = opts.options ? opts.options.slice() : getOptionsOfEnum(ctx.report.innerType);
-
-  // sort opts
-  if (opts.order) {
-    options.sort(api.Order.getComparator(opts.order));
-  }
-
-  var template = opts.template || ctx.templates.radio;
-
-  return React.createClass({
-
-    displayName: 'Radio',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onChange: function (value) {
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-      var result = t.validate(this.state.value, ctx.report.type);
-      this.setState({
-        hasError: !result.isValid(),
-        value: result.value
-      });
-      return result;
-    },
-
-    render: function () {
-
-      var id = opts.id || this._rootNodeID || uuid();
-
-      return compile(template(new theme.Radio({
-        config: merge(ctx.config, opts.config),
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        id: id,
-        label: label,
-        name: name,
-        onChange: this.onChange,
-        options: options,
-        value: this.state.value
-      })));
-    }
-  });
-}
-
-function struct(opts, ctx) {
-
-  opts = new api.Struct(opts || {});
-  var report = ctx.report;
-
-  assert(!report.maybe, 'maybe structs are not (yet) supported');
-
-  var props = report.innerType.meta.props;
-  var order = opts.order || Object.keys(props);
-  var auto =  opts.auto || ctx.auto;
-  var i18n =  opts.i18n || ctx.i18n;
-  var value = opts.value || ctx.value || {};
-
-  var label = !Nil.is(opts.label) ? opts.label :
-    ctx.auto !== 'none' ? ctx.getDefaultLabel() :
-    null;
-
-  var config = merge(ctx.config, opts.config);
-
-  var templates = merge(ctx.templates, opts.templates);
-
-  var components = {};
-  var fields = opts.fields || {};
-  order.forEach(function (prop) {
-    if (props.hasOwnProperty(prop)) {
-
-      var propType = props[prop];
-      var propOpts = fields[prop] || {};
-      var factory = getFactory(propType, propOpts);
-      var Component = factory(propOpts, new Context({
-        auto:       auto,
-        config:     config,
-        i18n:       i18n,
-        label:      humanize(prop),
-        name:       ctx.name ? ctx.name + '[' + prop + ']' : prop,
-        report:     new getReport(propType),
-        templates:  templates,
-        value:      value[prop]
-      }));
-
-      components[prop] = Component;
-
-    }
-  });
-
-  return React.createClass({
-
-    displayName: 'Struct',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onFieldChange: function (fieldName, fieldValue) {
-      var value = mixin({}, this.state.value);
-      value[fieldName] = fieldValue;
-      this.onChange(value);
-    },
-
-    onChange: function (value) {
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-
-      var value = {};
-      var errors = [];
-      var hasError = false;
-      var result;
-
-      for (var ref in this.refs) {
-        if (this.refs.hasOwnProperty(ref)) {
-          result = this.refs[ref].getValue();
-          errors = errors.concat(result.errors);
-          value[ref] = result.value;
-        }
-      }
-
-      if (errors.length === 0) {
-        value = new report.innerType(value);
-        // handle subtype
-        if (report.subtype && errors.length === 0) {
-          result = t.validate(value, report.type);
-          hasError = !result.isValid();
-          errors = errors.concat(result.errors);
-        }
-      }
-
-      this.setState({hasError: hasError, value: value});
-      return new ValidationResult({errors: errors, value: value});
-    },
-
-    render: function () {
-
-      var inputs = {};
-      for (var name in components) {
-        if (components.hasOwnProperty(name)) {
-          inputs[name] = React.createElement(components[name], {
-            key: name,
-            onChange: this.onFieldChange.bind(this, name),
-            ref: name // exploit the `name` uniqueness for keys
-          });
-        }
-      }
-
-      return compile(templates.struct(new theme.Struct({
-        config: config,
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        inputs: inputs,
-        label: label,
-        order: order,
-        value: this.state.value
-      })));
-    }
-  });
-}
-
-function list(opts, ctx) {
-
-  opts = new api.List(opts || {});
-  var report = ctx.report;
-
-  assert(!report.maybe, 'maybe lists are not (yet) supported');
-
-  var auto = opts.auto || ctx.auto;
-  var i18n = opts.i18n || ctx.i18n;
-  var value = opts.value || ctx.value || [];
-
-  var label = !Nil.is(opts.label) ? opts.label :
-    ctx.auto !== 'none' ? ctx.getDefaultLabel() :
-    null;
-
-  var config = merge(ctx.config, opts.config);
-
-  var templates = merge(ctx.templates, opts.templates);
-
-  var itemType = report.innerType.meta.type;
-  var itemOpts = opts.item || {};
-  var itemFactory = getFactory(itemType, itemOpts);
-  var getComponent = function (value, i) {
-    return itemFactory(itemOpts, new Context({
-      templates: templates,
-      i18n: i18n,
-      report: getReport(itemType),
-      name: ctx.name + '[' + i + ']',
-      auto: auto,
-      label: null,
-      value: value,
-      config: config
-    }));
-  };
-
-  // for lists it's very important to set the keys correctly
-  // otherwise React will re-render the inputs
-  // losing their states (hasError and value)
-
-  // [mutable]
-  var components = value.map(function (value, i) {
-    return {
-      Component: getComponent(value, i),
-      key: uuid() // every component has a  unique generated key
-    };
-  });
-
-  return React.createClass({
-
-    displayName: 'List',
-
-    getInitialState: function () {
-      return {
-        hasError: !!opts.hasError,
-        value: value
-      };
-    },
-
-    onItemChange: function (itemIndex, itemValue) {
-      var value = this.state.value.slice();
-      value[itemIndex] = itemValue;
-      this.onChange(value);
-    },
-
-    onChange: function (value) {
-      this.setState({value: value}, function () {
-        if (this.props.onChange) {
-          this.props.onChange(value);
-        }
-      }.bind(this));
-    },
-
-    getValue: function () {
-
-      var value = [];
-      var errors = [];
-      var hasError = false;
-      var result;
-
-      for (var i = 0, len = components.length ; i < len ; i++ ) {
-        if (this.refs.hasOwnProperty(i)) {
-          result = this.refs[i].getValue();
-          errors = errors.concat(result.errors);
-          value.push(result.value);
-        }
-      }
-
-      // handle subtype
-      if (report.subtype && errors.length === 0) {
-        result = t.validate(value, report.type);
-        hasError = !result.isValid();
-        errors = errors.concat(result.errors);
-      }
-
-      this.setState({hasError: hasError, value: value});
-      return new ValidationResult({errors: errors, value: value});
-    },
-
-    addItem: function (evt) {
-      evt.preventDefault();
-      components.push({
-        Component: getComponent(null, components.length),
-        key: uuid()
-      });
-      var value = this.state.value.slice();
-      value.push(null);
-      this.onChange(value);
-    },
-
-    removeItem: function (i, evt) {
-      evt.preventDefault();
-      components.splice(i, 1);
-      var value = this.state.value.slice();
-      value.splice(i, 1);
-      this.onChange(value);
-    },
-
-    moveUpItem: function (i, evt) {
-      evt.preventDefault();
-      if (i > 0) {
-        move(components, i, i - 1);
-        this.onChange(move(this.state.value.slice(), i, i - 1));
-      }
-    },
-
-    moveDownItem: function (i, evt) {
-      evt.preventDefault();
-      if (i < components.length - 1) {
-        move(components, i, i + 1);
-        this.onChange(move(this.state.value.slice(), i, i + 1));
-      }
-    },
-
-    render: function () {
-
-      var items = components.map(function getItem(item, i) {
-
-        var buttons = [];
-        if (!opts.disabledRemove) { buttons.push({ label: i18n.remove, click: this.removeItem.bind(this, i) }); }
-        if (!opts.disableOrder)   { buttons.push({ label: i18n.up, click: this.moveUpItem.bind(this, i) }); }
-        if (!opts.disableOrder)   { buttons.push({ label: i18n.down, click: this.moveDownItem.bind(this, i) }); }
-
-        return {
-          input: React.createElement(item.Component, {
-            key: item.key,
-            onChange: this.onItemChange.bind(this, i),
-            ref: i
-          }),
-          key: item.key,
-          buttons: buttons
-        };
-      }.bind(this));
-
-      return compile(templates.list(new theme.List({
-        add: opts.disableAdd ? null : {
-          label: i18n.add,
-          click: this.addItem
-        },
-        config: config,
-        disabled: opts.disabled,
-        error: getError(opts.error, this.state),
-        hasError: this.state.hasError,
-        help: opts.help,
-        items: items,
-        label: label,
-        value: this.state.value
-      })));
-    }
-  });
-}
-
-//
-// configuration
-//
-
-config.kinds = {
-  irreducible: function (type, opts) {
-    var name = getName(type);
-    if (t.Func.is(config.irreducibles[name])) {
-      return config.irreducibles[name](opts);
-    }
-    return textbox; // fallback on textbox
-  },
-  enums:    function () { return select; },
-  struct:   function () { return struct; },
-  list:     function () { return list; },
-  maybe:    function (type, opts) { return getFactory(type.meta.type, opts); },
-  subtype:  function (type, opts) { return getFactory(type.meta.type, opts); }
-};
-
-config.irreducibles = {
-  Bool: function () { return checkbox; }
-};
-
-config.transformers = {
-  Num: new api.Transformer({
-    format: function (value) {
-      return Nil.is(value) ? value : String(value);
-    },
-    parse: function (value) {
-      var n = parseFloat(value);
-      var isNumeric = (value - n + 1) >= 0;
-      return isNumeric ? n : value;
-    }
-  })
-};
-
-module.exports = {
-  getFactory: getFactory,
-  textbox:    textbox,
-  checkbox:   checkbox,
-  select:     select,
-  radio:      radio,
-  struct:     struct,
-  list:       list
-};
-
-},{"./config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","./protocols/api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/api.js","./protocols/theme":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/theme.js","./util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","./util/getOptionsOfEnum":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getOptionsOfEnum.js","./util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","./util/humanize":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/humanize.js","./util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","./util/move":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/move.js","./util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/index.js":[function(require,module,exports){
-var t = require('tcomb-validation');
-var create = require('./create');
-var config = require('./config');
-var factories = require('./factories');
-
-t.form = t.util.mixin({
-  create: create,
-  config: config
-}, factories);
-
-module.exports = t;
-},{"./config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","./create":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/create.js","./factories":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/factories.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/api.js":[function(require,module,exports){
+},{"./lib":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/index.js","./lib/skins/bootstrap":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skins/bootstrap/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js":[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var t = require('tcomb-validation');
 
-var Any = t.Any;
 var Str = t.Str;
 var Bool = t.Bool;
 var Func = t.Func;
@@ -14352,7 +13527,7 @@ var struct = t.struct;
 var union = t.union;
 
 var Auto = t.enums.of('placeholders labels none', 'Auto');
-Auto.defaultValue = 'placeholders';
+Auto.defaultValue = 'labels';
 
 // internationalization
 var I18n = struct({
@@ -14374,11 +13549,10 @@ var Context = struct({
   auto: Auto,
   config: maybe(Obj),
   i18n: I18n,
-  label: maybe(Str),
-  name: Str,
+  label: maybe(Str), // must be a string because of `i18n.optional` concatenation
+  name: maybe(Str),
   report: Report,
-  templates: Obj,
-  value: Any
+  templates: Obj
 }, 'Context');
 
 Context.prototype.getDefaultLabel = function () {
@@ -14419,6 +13593,7 @@ var Transformer = struct({
 }, 'Transformer');
 
 var Textbox = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   error: maybe(ErrorMessage),
@@ -14430,11 +13605,11 @@ var Textbox = struct({
   placeholder: maybe(Str),
   template: maybe(Func),
   transformer: maybe(Transformer),
-  type: maybe(TypeAttr),
-  value: Any
+  type: maybe(TypeAttr)
 }, 'Textbox');
 
 var Checkbox = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   hasError: maybe(Bool),
@@ -14443,8 +13618,7 @@ var Checkbox = struct({
   error: maybe(ErrorMessage),
   label: maybe(Label),
   name: maybe(t.Str),
-  template: maybe(Func),
-  value: maybe(Bool)
+  template: maybe(Func)
 }, 'Checkbox');
 
 function asc(a, b) {
@@ -14466,6 +13640,7 @@ Order.getComparator = function (order) {
 var SelectValue = union([Str, list(Str)], 'SelectValue');
 
 var Select = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   hasError: maybe(Bool),
@@ -14477,11 +13652,11 @@ var Select = struct({
   nullOption: maybe(Option),
   options: maybe(list(SelectOption)),
   order: maybe(Order),
-  template: maybe(Func),
-  value: maybe(SelectValue)
+  template: maybe(Func)
 }, 'Select');
 
 var Radio = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   hasError: maybe(Bool),
@@ -14492,8 +13667,7 @@ var Radio = struct({
   name: maybe(t.Str),
   options: maybe(list(SelectOption)),
   order: maybe(Order),
-  template: maybe(Func),
-  value: maybe(Str)
+  template: maybe(Func)
 }, 'Select');
 
 var Struct = struct({
@@ -14505,10 +13679,9 @@ var Struct = struct({
   hasError: maybe(Bool),
   help: maybe(Label),
   error: maybe(ErrorMessage),
-  label: maybe(Label),
+  legend: maybe(Label),
   order: maybe(list(Label)),
-  templates: maybe(Obj),
-  value: maybe(Obj)
+  templates: maybe(Obj)
 }, 'Struct');
 
 var List = struct({
@@ -14523,9 +13696,8 @@ var List = struct({
   hasError: maybe(Bool),
   help: maybe(Label),
   error: maybe(ErrorMessage),
-  label: maybe(Label),
-  templates: maybe(Obj),
-  value: maybe(t.Arr)
+  legend: maybe(Label),
+  templates: maybe(Obj)
 }, 'List');
 
 module.exports = {
@@ -14543,11 +13715,890 @@ module.exports = {
   Textbox: Textbox,
   Checkbox: Checkbox,
   Select: Select,
+  SelectValue: SelectValue,
   Radio: Radio,
   Struct: Struct,
   List: List
 };
-},{"react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/theme.js":[function(require,module,exports){
+},{"react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Checkbox.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var api = require('../api');
+var skin = require('../skin');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getError = require('../util/getError');
+var merge = require('../util/merge');
+var uuid = require('../util/uuid');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:Checkbox');
+
+function normalize(value) {
+  return !!t.maybe(t.Bool)(value);
+}
+
+var Checkbox = React.createClass({
+
+  displayName: 'Checkbox',
+
+  getInitialState: function () {
+    return {
+      hasError: false,
+      value: normalize(this.props.value)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    this.setState({value: normalize(props.value)});
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (value) {
+    value = normalize(value);
+    this.props.onChange(value);
+    this.setState({value: value});
+  },
+
+  getValue: function () {
+    var result = t.validate(this.state.value, this.props.ctx.report.type);
+    this.setState({hasError: !result.isValid()});
+    return result;
+  },
+
+  getLocals: function () {
+    var opts = new api.Checkbox(this.props.options || {});
+    var ctx = this.props.ctx;
+    t.assert(!ctx.report.maybe, 'maybe booleans are not supported');
+    t.assert(ctx.report.innerType === t.Bool, 'checkboxes support only booleans');
+    var id = opts.id || this._rootNodeID || uuid();
+    var name = opts.name || ctx.name || id;
+    debug('render() called for `%s` field', name);
+
+    // handle labels
+    var label = opts.label || ctx.getDefaultLabel(); // checkboxes must have a label
+
+    var value = this.state.value;
+    return {
+      autoFocus: opts.autoFocus,
+      config: merge(ctx.config, opts.config),
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      id: id,
+      label: label,
+      name: name,
+      onChange: this.onChange,
+      value: value,
+      template: opts.template || ctx.templates.checkbox
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.template(new skin.Checkbox(locals)));
+  }
+
+});
+
+module.exports = Checkbox;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","../util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Form.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var getComponent = require('../getComponent');
+var api = require('../api');
+var getReport = require('../util/getReport');
+var config =  require('../config');
+
+function noop() {}
+
+var Form = React.createClass({
+
+  displayName: 'Form',
+
+  // the public api returns `null` if validation failed
+  // unless the optional boolean argument `raw` is set to `true`
+  getValue: function (raw) {
+    var result = this.refs.input.getValue();
+    if (raw === true) { return result; }
+    if (result.isValid()) { return result.value; }
+    return null;
+  },
+
+  render: function () {
+    var type = this.props.type;
+    var options = this.props.options;
+    var ctx = new api.Context({
+      auto: api.Auto.defaultValue,
+      i18n: config.i18n,
+      report: getReport(type),
+      templates: config.templates
+    });
+    var factory = React.createFactory(getComponent(type, options));
+    return factory({
+      ref: 'input',
+      options: options,
+      value: this.props.value,
+      onChange: this.props.onChange || noop,
+      ctx: ctx
+    });
+  }
+
+});
+
+module.exports = Form;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","../getComponent":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/getComponent.js","../util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","react":"react"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/List.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getComponent = require('../getComponent');
+var api = require('../api');
+var skin = require('../skin');
+var getError = require('../util/getError');
+var merge = require('../util/merge');
+var move = require('../util/move');
+var uuid = require('../util/uuid');
+var getReport = require('../util/getReport');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:List');
+
+function justify(value, keys) {
+  if (value.length === keys.length) { return keys; }
+  var ret = [];
+  for (var i = 0, len = value.length ; i < len ; i++ ) {
+    ret[i] = keys[i] || uuid();
+  }
+  return ret;
+}
+
+function normalize(value) {
+  t.maybe(t.Arr)(value);
+  return value || [];
+}
+
+var List = React.createClass({
+
+  displayName: 'List',
+
+  getInitialState: function () {
+    var value = normalize(this.props.value);
+    return {
+      hasError: false,
+      value: value,
+      keys: value.map(uuid)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    var value = normalize(props.value);
+    this.setState({
+      value: value,
+      keys: justify(value, this.state.keys)
+    });
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (value, keys) {
+    this.props.onChange(value);
+    this.setState({value: value, keys: keys});
+  },
+
+  getValue: function () {
+    var report = this.props.ctx.report;
+    var value = [];
+    var errors = [];
+    var hasError = false;
+    var result;
+
+    for (var i = 0, len = this.state.value.length ; i < len ; i++ ) {
+      result = this.refs[i].getValue();
+      errors = errors.concat(result.errors);
+      value.push(result.value);
+    }
+
+    // handle subtype
+    if (report.subtype && errors.length === 0) {
+      result = t.validate(value, report.type);
+      hasError = !result.isValid();
+      errors = errors.concat(result.errors);
+    }
+
+    this.setState({hasError: hasError});
+    return new t.ValidationResult({errors: errors, value: value});
+  },
+
+  addItem: function (evt) {
+    evt.preventDefault();
+    var value = this.state.value.concat(null);
+    var keys = this.state.keys.concat(uuid());
+    this.onChange(value, keys);
+  },
+
+  onItemChange: function (itemIndex, itemValue) {
+    var value = this.state.value.slice();
+    value[itemIndex] = itemValue;
+    this.onChange(value, this.state.keys);
+  },
+
+  removeItem: function (i, evt) {
+    evt.preventDefault();
+    var value = this.state.value.slice();
+    value.splice(i, 1);
+    var keys = this.state.keys.slice();
+    keys.splice(i, 1);
+    this.onChange(value, keys);
+  },
+
+  moveUpItem: function (i, evt) {
+    evt.preventDefault();
+    if (i > 0) {
+      this.onChange(
+        move(this.state.value.slice(), i, i - 1),
+        move(this.state.keys.slice(), i, i - 1)
+      );
+    }
+  },
+
+  moveDownItem: function (i, evt) {
+    evt.preventDefault();
+    if (i < this.state.value.length - 1) {
+      this.onChange(
+        move(this.state.value.slice(), i, i + 1),
+        move(this.state.keys.slice(), i, i + 1)
+      );
+    }
+  },
+
+  getLocals: function () {
+    var opts = new api.List(this.props.options || {});
+    var ctx = this.props.ctx;
+    debug('render() called for `%s` field', ctx.name);
+    t.assert(!ctx.report.maybe, 'maybe lists are not supported');
+    var auto = opts.auto || ctx.auto;
+    var i18n = opts.i18n || ctx.i18n;
+    var value = t.Arr(this.state.value || []);
+
+    // handle legend
+    var legend = opts.legend; // always use the option value if is manually set
+    if (!legend && ctx.auto === 'labels') {
+      // add automatically a legend only if there is not a legend
+      // and the 'labels' auto option is turned on
+      legend = ctx.getDefaultLabel();
+    }
+
+    var config = merge(ctx.config, opts.config);
+    var templates = merge(ctx.templates, opts.templates);
+    var itemType = ctx.report.innerType.meta.type;
+    var factory = React.createFactory(getComponent(itemType, opts.item));
+    var items = value.map(function (value, i) {
+      var buttons = [];
+      if (!opts.disableRemove) { buttons.push({ label: i18n.remove, click: this.removeItem.bind(this, i) }); }
+      if (!opts.disableOrder)   { buttons.push({ label: i18n.up, click: this.moveUpItem.bind(this, i) }); }
+      if (!opts.disableOrder)   { buttons.push({ label: i18n.down, click: this.moveDownItem.bind(this, i) }); }
+      return {
+        input: factory({
+          ref: i,
+          type: itemType,
+          options: opts.item,
+          value: value,
+          onChange: this.onItemChange.bind(this, i),
+          ctx: new api.Context({
+            auto:       auto,
+            config:     config,
+            i18n:       i18n,
+            label:      null,
+            name:       ctx.name + '[' + i + ']',
+            report:     new getReport(itemType),
+            templates:  templates
+          })
+        }),
+        key: this.state.keys[i],
+        buttons: buttons
+      };
+    }.bind(this));
+    return {
+      add: opts.disableAdd ? null : {
+        label: i18n.add,
+        click: this.addItem
+      },
+      config: config,
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      items: items,
+      legend: legend,
+      value: value,
+      templates: templates
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.templates.list(new skin.List(locals)));
+  }
+
+});
+
+module.exports = List;
+
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../getComponent":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/getComponent.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","../util/move":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/move.js","../util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Radio.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var api = require('../api');
+var skin = require('../skin');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getError = require('../util/getError');
+var merge = require('../util/merge');
+var uuid = require('../util/uuid');
+var getOptionsOfEnum = require('../util/getOptionsOfEnum');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:Radio');
+
+function normalize(value) {
+  return t.maybe(api.SelectValue)(value);
+}
+
+var Radio = React.createClass({
+
+  displayName: 'Radio',
+
+  getInitialState: function () {
+    return {
+      hasError: false,
+      value: normalize(this.props.value)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    this.setState({value: normalize(props.value)});
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (value) {
+    value = normalize(value);
+    this.props.onChange(value);
+    this.setState({value: value});
+  },
+
+  getValue: function () {
+    var result = t.validate(this.state.value, this.props.ctx.report.type);
+    this.setState({hasError: !result.isValid()});
+    return result;
+  },
+
+  getLocals: function () {
+    var opts = new api.Radio(this.props.options || {});
+    var ctx = this.props.ctx;
+    var id = opts.id || this._rootNodeID || uuid();
+    var name = opts.name || ctx.name || id;
+    debug('render() called for `%s` field', name);
+
+    // handle labels
+    var label = opts.label; // always use the option value if is manually set
+    if (!label && ctx.auto === 'labels') {
+      // add automatically a label only if there is not a label
+      // and the 'labels' auto option is turned on
+      label = ctx.getDefaultLabel();
+    }
+
+    var options = opts.options ? opts.options.slice() : getOptionsOfEnum(ctx.report.innerType);
+    // sort opts
+    if (opts.order) {
+      options.sort(api.Order.getComparator(opts.order));
+    }
+    var value = this.state.value;
+    return {
+      autoFocus: opts.autoFocus,
+      config: merge(ctx.config, opts.config),
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      id: id,
+      label: label,
+      name: name,
+      onChange: this.onChange,
+      options: options,
+      value: value,
+      template: opts.template || ctx.templates.radio
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.template(new skin.Radio(locals)));
+  }
+
+});
+
+module.exports = Radio;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/getOptionsOfEnum":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getOptionsOfEnum.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","../util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Select.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var api = require('../api');
+var skin = require('../skin');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getError = require('../util/getError');
+var getReport = require('../util/getReport');
+var merge = require('../util/merge');
+var uuid = require('../util/uuid');
+var getOptionsOfEnum = require('../util/getOptionsOfEnum');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:Select');
+
+function normalize(value) {
+  return t.maybe(api.SelectValue)(value);
+}
+
+var Select = React.createClass({
+
+  displayName: 'Select',
+
+  getInitialState: function () {
+    return {
+      hasError: false,
+      value: normalize(this.props.value)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    this.setState({value: normalize(props.value)});
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (value) {
+    value = normalize(value);
+    this.props.onChange(value);
+    this.setState({value: value});
+  },
+
+  getValue: function () {
+    var result = t.validate(this.state.value, this.props.ctx.report.type);
+    this.setState({hasError: !result.isValid()});
+    return result;
+  },
+
+  getLocals: function () {
+    var opts = new api.Select(this.props.options || {});
+    var ctx = this.props.ctx;
+    var id = opts.id || this._rootNodeID || uuid();
+    var name = opts.name || ctx.name || id;
+    debug('render() called for `%s` field', name);
+    var Enum = ctx.report.innerType;
+    // handle `multiple` attribute
+    var multiple = false;
+    if (Enum.meta.kind === 'list') {
+      multiple = true;
+      Enum = getReport(Enum.meta.type).innerType;
+    }
+
+    // handle labels
+    var label = opts.label; // always use the option value if is manually set
+    if (!label && ctx.auto === 'labels') {
+      // add automatically a label only if there is not a label
+      // and the 'labels' auto option is turned on
+      label = ctx.getDefaultLabel();
+    }
+
+    var value = this.state.value;
+    var options = opts.options ? opts.options.slice() : getOptionsOfEnum(Enum);
+    // sort opts
+    if (opts.order) {
+      options.sort(api.Order.getComparator(opts.order));
+    }
+    // add a `null` option in first position
+    var nullOption = opts.nullOption || {value: '', text: '-'};
+    if (!multiple) {
+      options.unshift(nullOption);
+    }
+    return {
+      autoFocus: opts.autoFocus,
+      config: merge(ctx.config, opts.config),
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      id: id,
+      label: label,
+      name: name,
+      multiple: multiple,
+      onChange: function (value) {
+        if (value === nullOption.value) {
+          value = null;
+        }
+        this.onChange(value);
+      }.bind(this),
+      options: options,
+      value: value,
+      template: opts.template || ctx.templates.select
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.template(new skin.Select(locals)));
+  }
+
+});
+
+module.exports = Select;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/getOptionsOfEnum":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getOptionsOfEnum.js","../util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","../util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Struct.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getComponent = require('../getComponent');
+var api = require('../api');
+var skin = require('../skin');
+var getError = require('../util/getError');
+var merge = require('../util/merge');
+var humanize = require('../util/humanize');
+var getReport = require('../util/getReport');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:Struct');
+
+function normalize(value) {
+  t.maybe(t.Obj)(value);
+  return value || {};
+}
+
+var Struct = React.createClass({
+
+  displayName: 'Struct',
+
+  getInitialState: function () {
+    return {
+      hasError: false,
+      value: normalize(this.props.value)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    this.setState({value: normalize(props.value)});
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (fieldName, fieldValue) {
+    var value = t.mixin({}, this.state.value);
+    value[fieldName] = fieldValue;
+    this.props.onChange(value);
+    this.setState({value: value});
+  },
+
+  getValue: function () {
+    var report = this.props.ctx.report;
+    var value = {};
+    var errors = [];
+    var hasError = false;
+    var result;
+
+    for (var ref in this.refs) {
+      if (this.refs.hasOwnProperty(ref)) {
+        result = this.refs[ref].getValue();
+        errors = errors.concat(result.errors);
+        value[ref] = result.value;
+      }
+    }
+
+    if (errors.length === 0) {
+      value = new report.innerType(value);
+      // handle subtype
+      if (report.subtype && errors.length === 0) {
+        result = t.validate(value, report.type);
+        hasError = !result.isValid();
+        errors = errors.concat(result.errors);
+      }
+    }
+
+    this.setState({hasError: hasError});
+    return new t.ValidationResult({errors: errors, value: value});
+  },
+
+  getLocals: function () {
+    var opts = new api.Struct(this.props.options || {});
+    var ctx = this.props.ctx;
+    debug('render() called for `%s` field', ctx.name);
+    t.assert(!ctx.report.maybe, 'maybe structs are not supported');
+    var auto =  opts.auto || ctx.auto;
+
+    // handle legend
+    var legend = opts.legend; // always use the option value if is manually set
+    if (!legend && ctx.auto === 'labels') {
+      // add automatically a legend only if there is not a legend
+      // and the 'labels' auto option is turned on
+      legend = ctx.getDefaultLabel();
+    }
+
+    var config = merge(ctx.config, opts.config);
+    var value = this.state.value;
+    var props = ctx.report.innerType.meta.props;
+    var i18n =  opts.i18n || ctx.i18n;
+    var templates = merge(ctx.templates, opts.templates);
+    var inputs = {};
+    for (var prop in props) {
+      if (props.hasOwnProperty(prop)) {
+        var propType = props[prop];
+        var propOptions = opts.fields ? opts.fields[prop] : null;
+        inputs[prop] = React.createFactory(getComponent(propType, propOptions))({
+          key: prop,
+          ref: prop,
+          type: propType,
+          options: propOptions,
+          value: value[prop],
+          onChange: this.onChange.bind(this, prop),
+          ctx: new api.Context({
+            auto:       auto,
+            config:     config,
+            i18n:       i18n,
+            label:      humanize(prop),
+            name:       ctx.name ? ctx.name + '[' + prop + ']' : prop,
+            report:     new getReport(propType),
+            templates:  templates
+          })
+        });
+      }
+    }
+    return {
+      config: config,
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      inputs: inputs,
+      legend: legend,
+      order: opts.order || Object.keys(props),
+      value: value,
+      templates: templates
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.templates.struct(new skin.Struct(locals)));
+  }
+
+});
+
+module.exports = Struct;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../getComponent":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/getComponent.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/getReport":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js","../util/humanize":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/humanize.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Textbox.js":[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var t = require('tcomb-validation');
+var api = require('../api');
+var skin = require('../skin');
+var shouldComponentUpdate = require('./shouldComponentUpdate');
+var getError = require('../util/getError');
+var merge = require('../util/merge');
+var uuid = require('../util/uuid');
+var config = require('../config');
+var compile = require('uvdom/react').compile;
+var debug = require('debug')('component:Textbox');
+
+function normalize(value) {
+  return (t.Str.is(value) && value.trim() === '') ? null :
+    !t.Nil.is(value) ? value :
+    null;
+}
+
+var Textbox = React.createClass({
+
+  displayName: 'Textbox',
+
+  getInitialState: function () {
+    return {
+      hasError: false,
+      value: normalize(this.props.value)
+    };
+  },
+
+  componentWillReceiveProps: function (props) {
+    this.setState({value: normalize(props.value)});
+  },
+
+  shouldComponentUpdate: shouldComponentUpdate,
+
+  onChange: function (value) {
+    value = normalize(value);
+    this.props.onChange(value);
+    this.setState({value: value});
+  },
+
+  getValue: function () {
+    var result = t.validate(this.state.value, this.props.ctx.report.type);
+    this.setState({hasError: !result.isValid()});
+    return result;
+  },
+
+  // useful for tests
+  getLocals: function () {
+    var opts = new api.Textbox(this.props.options || {});
+    var ctx = this.props.ctx;
+    var id = opts.id || this._rootNodeID || uuid();
+    var name = opts.name || ctx.name || id;
+    debug('render() called for `%s` field', name);
+
+    // handle labels
+    var label = opts.label; // always use the option value if is manually set
+    if (!label && ctx.auto === 'labels') {
+      // add automatically a label only if there is not a label
+      // and the 'labels' auto option is turned on
+      label = ctx.getDefaultLabel();
+    }
+
+    // handle placeholders
+    var placeholder = opts.placeholder; // always use the option value if is manually set
+    if (!label && !placeholder && ctx.auto === 'placeholders') {
+      // add automatically a placeholder only if there is not a label
+      // nor a placeholder manually set and the 'placeholders' auto option is turned on
+      placeholder = ctx.getDefaultLabel();
+    }
+
+    var value = this.state.value;
+    var transformer = opts.transformer || config.transformers[t.getTypeName(ctx.report.innerType)];
+    if (transformer) {
+      value = transformer.format(value);
+    }
+    return {
+      autoFocus: opts.autoFocus,
+      config: merge(ctx.config, opts.config),
+      disabled: opts.disabled,
+      error: getError(opts.error, value),
+      hasError: opts.hasError || this.state.hasError,
+      help: opts.help,
+      id: id,
+      label: label,
+      name: name,
+      onChange: function (value) {
+        if (transformer) {
+          value = transformer.parse(value);
+        }
+        this.onChange(value);
+      }.bind(this),
+      placeholder: placeholder,
+      type: opts.type || 'text',
+      value: value,
+      template: opts.template || ctx.templates.textbox
+    };
+  },
+
+  render: function () {
+    var locals = this.getLocals();
+    return compile(locals.template(new skin.Textbox(locals)));
+  }
+
+});
+
+module.exports = Textbox;
+},{"../api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","../config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","../util/getError":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js","../util/merge":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/merge.js","../util/uuid":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/uuid.js","./shouldComponentUpdate":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom/react":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/shouldComponentUpdate.js":[function(require,module,exports){
+'use strict';
+
+module.exports = function (nextProps, nextState) {
+  return nextState.value !== this.state.value ||
+    nextState.hasError !== this.state.hasError ||
+    nextProps.value !== this.props.value ||
+    nextProps.options !== this.props.options ||
+    nextProps.ctx.report.type !== this.props.ctx.report.type;
+};
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js":[function(require,module,exports){
+'use strict';
+
+var api = require('./api');
+var t = require('tcomb-validation');
+
+var defaultLocaleBundle = new api.I18n({
+  optional: ' (optional)',
+  add: 'Add',
+  remove: 'Remove',
+  up: 'Up',
+  down: 'Down'
+});
+
+var NumberTransformer = new api.Transformer({
+  format: function (value) {
+    return t.Nil.is(value) ? value : String(value);
+  },
+  parse: function (value) {
+    var n = parseFloat(value);
+    var isNumeric = (value - n + 1) >= 0;
+    return isNumeric ? n : value;
+  }
+});
+
+module.exports = {
+  i18n: defaultLocaleBundle,
+  transformers: {
+    Num: NumberTransformer
+  },
+  irreducibles: {
+    Bool: require('./components/Checkbox')
+  }
+};
+},{"./api":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/api.js","./components/Checkbox":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Checkbox.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/getComponent.js":[function(require,module,exports){
+'use strict';
+
+var t = require('tcomb-validation');
+var config = require('./config');
+
+// here requires must be dynamic since there is a circular
+// dependency between getComponent and the components
+function getComponent(type, options) {
+  if (options && options.factory) {
+    return options.factory;
+  }
+  switch (type.meta.kind) {
+    case 'irreducible' :
+      var name = t.getTypeName(type);
+      if (t.Func.is(config.irreducibles[name])) {
+        return config.irreducibles[name];
+      }
+      // fallback on textbox
+      return require('./components/Textbox');
+    case 'struct' :
+      return require('./components/Struct');
+    case 'enums' :
+      return require('./components/Select');
+    case 'list' :
+      return require('./components/List');
+    case 'maybe' :
+    case 'subtype' :
+      return getComponent(type.meta.type, options);
+  }
+}
+
+module.exports = getComponent;
+},{"./components/List":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/List.js","./components/Select":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Select.js","./components/Struct":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Struct.js","./components/Textbox":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Textbox.js","./config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/index.js":[function(require,module,exports){
+var t = require('tcomb-validation');
+
+t.form = {
+  debug:    require('debug'),
+  config:   require('./config'),
+  Form:     require('./components/Form'),
+  Textbox:  require('./components/Textbox'),
+  Select:   require('./components/Select'),
+  Checkbox: require('./components/Checkbox'),
+  Radio:    require('./components/Radio'),
+  Struct:   require('./components/Struct'),
+  List:     require('./components/List')
+};
+
+module.exports = t;
+},{"./components/Checkbox":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Checkbox.js","./components/Form":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Form.js","./components/List":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/List.js","./components/Radio":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Radio.js","./components/Select":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Select.js","./components/Struct":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Struct.js","./components/Textbox":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/components/Textbox.js","./config":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/config.js","debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js":[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -14587,6 +14638,7 @@ SelectOption.dispatch = function (x) {
 var TypeAttr = t.enums.of('textarea hidden text password color date datetime datetime-local email month number range search tel time url week', 'TypeAttr');
 
 var Textbox = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),    // should be disabled
   error: maybe(Label),      // should show an error
@@ -14598,10 +14650,11 @@ var Textbox = struct({
   onChange: Func,           // should call this function with the changed value
   placeholder: maybe(Str),  // should show a placeholder
   type: TypeAttr,           // should use this as type attribute
-  value: maybe(Str)         // should use this as value attribute
+  value: t.Any              // should use this as value attribute
 }, 'Textbox');
 
 var Checkbox = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   error: maybe(Label),
@@ -14618,6 +14671,7 @@ var Checkbox = struct({
 var SelectValue = union([Str, list(Str)], 'SelectValue');
 
 var Select = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   error: maybe(Label),
   disabled: maybe(Bool),
@@ -14633,6 +14687,7 @@ var Select = struct({
 }, 'Select');
 
 var Radio = struct({
+  autoFocus: maybe(Bool),
   config: maybe(Obj),
   disabled: maybe(Bool),
   error: maybe(Label),
@@ -14655,7 +14710,7 @@ var Struct = struct({
   help: maybe(Label),
   hasError: maybe(Bool),
   inputs: t.dict(Str, ReactElement),
-  label: maybe(Label),
+  legend: maybe(Label),
   order: list(Label),
   value: maybe(StructValue)
 }, 'Struct');
@@ -14679,7 +14734,7 @@ var List = struct({
   hasError: maybe(Bool),
   help: maybe(Label),
   items: list(ListItem),
-  label: maybe(Label),
+  legend: maybe(Label),
   value: maybe(list(t.Any))
 }, 'List');
 
@@ -14694,12 +14749,12 @@ module.exports = {
   Struct: Struct,
   List: List
 };
-},{"react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/templates/bootstrap.js":[function(require,module,exports){
+},{"react":"react","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skins/bootstrap/index.js":[function(require,module,exports){
 'use strict';
 
 var t = require('tcomb-validation');
-var theme = require('../protocols/theme');
-var Label = theme.Label;
+var skin = require('../../skin');
+var Label = skin.Label;
 var uform = require('uvdom-bootstrap/form');
 var maybe = t.maybe;
 var getFieldset = uform.getFieldset;
@@ -14744,7 +14799,7 @@ Breakpoints.prototype.getInputClassName = function () {
 };
 
 Breakpoints.prototype.getOffsetClassName = function () {
-  return t.util.mixin(uform.getOffsets(this.getBreakpoints(1)), getBreakpoints(this.getBreakpoints(1)));
+  return t.mixin(uform.getOffsets(this.getBreakpoints(1)), getBreakpoints(this.getBreakpoints(1)));
 };
 
 Breakpoints.prototype.getFieldsetClassName = function () {
@@ -14814,7 +14869,7 @@ function getHelp(locals) {
 }
 
 function getError(locals) {
-  if (!locals.error) { return; }
+  if (!locals.hasError || !locals.error) { return; }
   return uform.getErrorBlock({
     error: locals.error,
     hasError: locals.hasError
@@ -14846,6 +14901,7 @@ function textbox(locals) {
   }
 
   var control = uform.getTextbox({
+    autoFocus: locals.autoFocus,
     type: locals.type,
     value: locals.value,
     disabled: locals.disabled,
@@ -14911,6 +14967,7 @@ function checkbox(locals) {
   var config = new CheckboxConfig(locals.config || {});
 
   var control = uform.getCheckbox({
+    autoFocus: locals.autoFocus,
     checked: locals.value,
     disabled: locals.disabled,
     id: locals.id,
@@ -14950,7 +15007,7 @@ function select(locals) {
   var config = new SelectConfig(locals.config || {});
 
   var options = locals.options.map(function (x) {
-    return theme.Option.is(x) ? uform.getOption(x) : uform.getOptGroup(x);
+    return skin.Option.is(x) ? uform.getOption(x) : uform.getOptGroup(x);
   });
 
   function onChange(evt) {
@@ -14965,6 +15022,7 @@ function select(locals) {
   }
 
   var control = uform.getSelect({
+    autoFocus: locals.autoFocus,
     value: locals.value,
     disabled: locals.disabled,
     'aria-describedby': locals.help ? locals.id + '-tip' : null,
@@ -15018,8 +15076,9 @@ function radio(locals) {
 
   var config = new RadioConfig(locals.config || {});
 
-  var control = locals.options.map(function (option) {
+  var control = locals.options.map(function (option, i) {
     return uform.getRadio({
+      autoFocus: locals.autoFocus && (i === 0),
       'aria-describedby': locals.label ? locals.id : null,
       id: locals.id + '-' + option.value,
       checked: (option.value === locals.value),
@@ -15098,7 +15157,7 @@ function struct(locals) {
     children: getFieldset({
       className: config.horizontal && config.horizontal.getFieldsetClassName(),
       disabled: locals.disabled,
-      legend: locals.label,
+      legend: locals.legend,
       children: rows
     })
   });
@@ -15117,6 +15176,17 @@ function list(locals) {
   }
 
   rows = rows.concat(locals.items.map(function (item) {
+    if (item.buttons.length === 0) {
+      return uform.getRow({
+        key: item.key,
+        children: [
+          getCol({
+            breakpoints: {xs: 12},
+            children: item.input
+          })
+        ]
+      });
+    }
     return uform.getRow({
       key: item.key,
       children: [
@@ -15153,7 +15223,7 @@ function list(locals) {
     children: getFieldset({
       className: config.horizontal && config.horizontal.getFieldsetClassName(),
       disabled: locals.disabled,
-      legend: locals.label,
+      legend: locals.legend,
       children: rows
     })
   });
@@ -15168,14 +15238,13 @@ module.exports = {
   struct: struct,
   list: list
 };
-},{"../protocols/theme":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/protocols/theme.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom-bootstrap/form":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom-bootstrap/form.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js":[function(require,module,exports){
+},{"../../skin":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/skin.js","tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js","uvdom-bootstrap/form":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom-bootstrap/form.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getError.js":[function(require,module,exports){
 'use strict';
 
 var t = require('tcomb-validation');
 
-function getError(error, state) {
-  if (!state.hasError) { return null; }
-  return t.Func.is(error) ? error(state.value) : error;
+function getError(error, value) {
+  return t.Func.is(error) ? error(value) : error;
 }
 
 module.exports = getError;
@@ -15196,9 +15265,6 @@ module.exports = getOptionsOfEnum;
 },{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/getReport.js":[function(require,module,exports){
 'use strict';
 
-var t = require('tcomb-validation');
-var getKind = t.util.getKind;
-
 function getReport(type) {
 
   var innerType = type;
@@ -15207,7 +15273,7 @@ function getReport(type) {
   var kind;
 
   while (true) {
-    kind = getKind(innerType);
+    kind = innerType.meta.kind;
     if (kind === 'maybe') {
       maybe = true;
       innerType = innerType.meta.type;
@@ -15230,7 +15296,7 @@ function getReport(type) {
 }
 
 module.exports = getReport;
-},{"tcomb-validation":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/humanize.js":[function(require,module,exports){
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/lib/util/humanize.js":[function(require,module,exports){
 'use strict';
 
 // thanks to https://github.com/epeli/underscore.string
@@ -15252,7 +15318,7 @@ module.exports = humanize;
 'use strict';
 
 var t = require('tcomb-validation');
-var mixin = t.util.mixin;
+var mixin = t.mixin;
 
 function merge(a, b) {
   return mixin(mixin({}, a), b, true);
@@ -15280,6 +15346,478 @@ function uuid() {
 }
 
 module.exports = uuid;
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/browser.js":[function(require,module,exports){
+
+/**
+ * This is the web browser implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = require('./debug');
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+
+/**
+ * Use chrome.storage.local if we are in an app
+ */
+
+var storage;
+
+if (typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined')
+  storage = chrome.storage.local;
+else
+  storage = window.localStorage;
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+  'lightseagreen',
+  'forestgreen',
+  'goldenrod',
+  'dodgerblue',
+  'darkorchid',
+  'crimson'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+function useColors() {
+  // is webkit? http://stackoverflow.com/a/16459606/376773
+  return ('WebkitAppearance' in document.documentElement.style) ||
+    // is firebug? http://stackoverflow.com/a/398120/376773
+    (window.console && (console.firebug || (console.exception && console.table))) ||
+    // is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    (navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31);
+}
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+exports.formatters.j = function(v) {
+  return JSON.stringify(v);
+};
+
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs() {
+  var args = arguments;
+  var useColors = this.useColors;
+
+  args[0] = (useColors ? '%c' : '')
+    + this.namespace
+    + (useColors ? ' %c' : ' ')
+    + args[0]
+    + (useColors ? '%c ' : ' ')
+    + '+' + exports.humanize(this.diff);
+
+  if (!useColors) return args;
+
+  var c = 'color: ' + this.color;
+  args = [args[0], c, 'color: inherit'].concat(Array.prototype.slice.call(args, 1));
+
+  // the final "%c" is somewhat tricky, because there could be other
+  // arguments passed either before or after the %c, so we need to
+  // figure out the correct index to insert the CSS into
+  var index = 0;
+  var lastC = 0;
+  args[0].replace(/%[a-z%]/g, function(match) {
+    if ('%%' === match) return;
+    index++;
+    if ('%c' === match) {
+      // we only are interested in the *last* %c
+      // (the user may have provided their own)
+      lastC = index;
+    }
+  });
+
+  args.splice(lastC, 0, c);
+  return args;
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+
+function log() {
+  // this hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return 'object' === typeof console
+    && console.log
+    && Function.prototype.apply.call(console.log, console, arguments);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  try {
+    if (null == namespaces) {
+      storage.removeItem('debug');
+    } else {
+      storage.debug = namespaces;
+    }
+  } catch(e) {}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  var r;
+  try {
+    r = storage.debug;
+  } catch(e) {}
+  return r;
+}
+
+/**
+ * Enable namespaces listed in `localStorage.debug` initially.
+ */
+
+exports.enable(load());
+
+},{"./debug":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/debug.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/debug.js":[function(require,module,exports){
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = debug;
+exports.coerce = coerce;
+exports.disable = disable;
+exports.enable = enable;
+exports.enabled = enabled;
+exports.humanize = require('ms');
+
+/**
+ * The currently active debug mode names, and names to skip.
+ */
+
+exports.names = [];
+exports.skips = [];
+
+/**
+ * Map of special "%n" handling functions, for the debug "format" argument.
+ *
+ * Valid key names are a single, lowercased letter, i.e. "n".
+ */
+
+exports.formatters = {};
+
+/**
+ * Previously assigned color.
+ */
+
+var prevColor = 0;
+
+/**
+ * Previous log timestamp.
+ */
+
+var prevTime;
+
+/**
+ * Select a color.
+ *
+ * @return {Number}
+ * @api private
+ */
+
+function selectColor() {
+  return exports.colors[prevColor++ % exports.colors.length];
+}
+
+/**
+ * Create a debugger with the given `namespace`.
+ *
+ * @param {String} namespace
+ * @return {Function}
+ * @api public
+ */
+
+function debug(namespace) {
+
+  // define the `disabled` version
+  function disabled() {
+  }
+  disabled.enabled = false;
+
+  // define the `enabled` version
+  function enabled() {
+
+    var self = enabled;
+
+    // set `diff` timestamp
+    var curr = +new Date();
+    var ms = curr - (prevTime || curr);
+    self.diff = ms;
+    self.prev = prevTime;
+    self.curr = curr;
+    prevTime = curr;
+
+    // add the `color` if not set
+    if (null == self.useColors) self.useColors = exports.useColors();
+    if (null == self.color && self.useColors) self.color = selectColor();
+
+    var args = Array.prototype.slice.call(arguments);
+
+    args[0] = exports.coerce(args[0]);
+
+    if ('string' !== typeof args[0]) {
+      // anything else let's inspect with %o
+      args = ['%o'].concat(args);
+    }
+
+    // apply any `formatters` transformations
+    var index = 0;
+    args[0] = args[0].replace(/%([a-z%])/g, function(match, format) {
+      // if we encounter an escaped % then don't increase the array index
+      if (match === '%%') return match;
+      index++;
+      var formatter = exports.formatters[format];
+      if ('function' === typeof formatter) {
+        var val = args[index];
+        match = formatter.call(self, val);
+
+        // now we need to remove `args[index]` since it's inlined in the `format`
+        args.splice(index, 1);
+        index--;
+      }
+      return match;
+    });
+
+    if ('function' === typeof exports.formatArgs) {
+      args = exports.formatArgs.apply(self, args);
+    }
+    var logFn = enabled.log || exports.log || console.log.bind(console);
+    logFn.apply(self, args);
+  }
+  enabled.enabled = true;
+
+  var fn = exports.enabled(namespace) ? enabled : disabled;
+
+  fn.namespace = namespace;
+
+  return fn;
+}
+
+/**
+ * Enables a debug mode by namespaces. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} namespaces
+ * @api public
+ */
+
+function enable(namespaces) {
+  exports.save(namespaces);
+
+  var split = (namespaces || '').split(/[\s,]+/);
+  var len = split.length;
+
+  for (var i = 0; i < len; i++) {
+    if (!split[i]) continue; // ignore empty strings
+    namespaces = split[i].replace(/\*/g, '.*?');
+    if (namespaces[0] === '-') {
+      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+    } else {
+      exports.names.push(new RegExp('^' + namespaces + '$'));
+    }
+  }
+}
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+function disable() {
+  exports.enable('');
+}
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+function enabled(name) {
+  var i, len;
+  for (i = 0, len = exports.skips.length; i < len; i++) {
+    if (exports.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (i = 0, len = exports.names.length; i < len; i++) {
+    if (exports.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Coerce `val`.
+ *
+ * @param {Mixed} val
+ * @return {Mixed}
+ * @api private
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+},{"ms":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/node_modules/ms/index.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/debug/node_modules/ms/index.js":[function(require,module,exports){
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} options
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options){
+  options = options || {};
+  if ('string' == typeof val) return parse(val);
+  return options.long
+    ? long(val)
+    : short(val);
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  var match = /^((?:\d+)?\.?\d+) *(ms|seconds?|s|minutes?|m|hours?|h|days?|d|years?|y)?$/i.exec(str);
+  if (!match) return;
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'y':
+      return n * y;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 's':
+      return n * s;
+    case 'ms':
+      return n;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function short(ms) {
+  if (ms >= d) return Math.round(ms / d) + 'd';
+  if (ms >= h) return Math.round(ms / h) + 'h';
+  if (ms >= m) return Math.round(ms / m) + 'm';
+  if (ms >= s) return Math.round(ms / s) + 's';
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function long(ms) {
+  return plural(ms, d, 'day')
+    || plural(ms, h, 'hour')
+    || plural(ms, m, 'minute')
+    || plural(ms, s, 'second')
+    || ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) return;
+  if (ms < n * 1.5) return Math.floor(ms / n) + ' ' + name;
+  return Math.ceil(ms / n) + ' ' + name + 's';
+}
+
 },{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom-bootstrap/form.js":[function(require,module,exports){
 module.exports = {
   getAddon: require('./lib/getAddon'),
@@ -15367,7 +15905,11 @@ module.exports = getBreakpoints;
     block: true,
     active: true,
     size: 'lg',
-    disabled: true
+    disabled: true,
+    autoFocus: true,
+    events: {
+      ...
+    }
   }
 
 */
@@ -15386,15 +15928,18 @@ function getButton(opts) {
     className['btn-' + opts.size] = true;
   }
 
+  var events = opts.events || {
+    click: opts.click
+  };
+
   return {
     tag: 'button',
     attrs: {
       disabled: opts.disabled,
-      className: className
+      className: className,
+      autoFocus: opts.autoFocus
     },
-    events: {
-      click: opts.click
-    },
+    events: events,
     children: opts.label,
     key: opts.key
   }
@@ -15433,12 +15978,19 @@ module.exports = getButtonGroup;
     checked: true,
     name: 'rememberMe',
     disabled: false,
-    onChange: function () {}
+    events: {
+      ...
+    },
+    autoFocus: true
   }
 
 */
 
 function getCheckbox(opts) {
+
+  var events = opts.events || {
+    change: opts.onChange
+  };
 
   return {
     tag: 'div',
@@ -15461,11 +16013,10 @@ function getCheckbox(opts) {
             disabled: opts.disabled,
             id: opts.id,
             name: opts.name,
-            type: 'checkbox'
+            type: 'checkbox',
+            autoFocus: opts.autoFocus
           },
-          events: {
-            change: opts.onChange
-          }
+          events: events
         },
         ' ',
         opts.label
@@ -15741,12 +16292,19 @@ module.exports = getOption;
     value: '1',
     name: 'option',
     disabled: false,
-    onChange: function () {}
+    events: {
+      ...
+    },
+    autoFocus: true
   }
 
 */
 
 function getRadio(opts) {
+
+  var events = opts.events || {
+    change: opts.onChange
+  };
 
   return {
     tag: 'div',
@@ -15773,11 +16331,10 @@ function getRadio(opts) {
             value: opts.value,
             id: opts.id,
             // aria support
-            'aria-describedby': opts['aria-describedby']
+            'aria-describedby': opts['aria-describedby'],
+            autoFocus: opts.autoFocus
           },
-          events: {
-            change: opts.onChange
-          }
+          events: events
         },
         ' ',
         opts.label
@@ -15818,13 +16375,20 @@ module.exports = getRow;
     name: 'myname',
     disabled: false,
     size: 'lg',
-    onChange: function () {},
-    'aria-describedby': 'password-tip'
+    events: {
+      ...
+    },
+    'aria-describedby': 'password-tip',
+    autoFocus: false
   }
 
 */
 
 function getSelect(opts) {
+
+  var events = opts.events || {
+    change: opts.onChange
+  };
 
   var className = {
     'form-control': true
@@ -15844,12 +16408,11 @@ function getSelect(opts) {
       multiple: opts.multiple,
       id: opts.id,
       // aria support
-      'aria-describedby': opts['aria-describedby']
+      'aria-describedby': opts['aria-describedby'],
+      autoFocus: opts.autoFocus
     },
     children: opts.options,
-    events: {
-      change: opts.onChange
-    }
+    events: events
   };
 }
 
@@ -15886,13 +16449,20 @@ module.exports = getStatic;
     placeholder: 'insert your name',
     readOnly: true,
     size: 'lg',
-    onChange: function () {},
-    'aria-describedby': 'password-tip'
+    events: {
+      ...
+    },
+    'aria-describedby': 'password-tip',
+    autoFocus: true
   }
 
 */
 
 function getTextbox(opts) {
+
+  var events = opts.events || {
+    change: opts.onChange
+  };
 
   var type = opts.type || 'text';
   var className = {
@@ -15914,12 +16484,10 @@ function getTextbox(opts) {
       readOnly: opts.readOnly,
       className: className,
       id: opts.id,
-      // aria support
-      'aria-describedby': opts['aria-describedby']
+      'aria-describedby': opts['aria-describedby'],
+      autoFocus: opts.autoFocus
     },
-    events: {
-      change: opts.onChange
-    }
+    events: events
   };
 }
 
@@ -15938,6 +16506,45 @@ function mixin(a, b) {
 }
 
 module.exports = mixin;
+},{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/node_modules/react/lib/cx.js":[function(require,module,exports){
+/**
+ * Copyright 2013-2014, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule cx
+ */
+
+/**
+ * This function is used to mark string literals representing CSS class names
+ * so that they can be transformed statically. This allows for modularization
+ * and minification of CSS class names.
+ *
+ * In static_upstream, this function is actually implemented, but it should
+ * eventually be replaced with something more descriptive, and the transform
+ * that is used in the main stack should be ported for use elsewhere.
+ *
+ * @param string|object className to modularize, or an object of key/values.
+ *                      In the object case, the values are conditions that
+ *                      determine if the className keys should be included.
+ * @param [string ...]  Variable list of classNames in the string case.
+ * @return string       Renderable space-separated CSS className.
+ */
+function cx(classNames) {
+  if (typeof classNames == 'object') {
+    return Object.keys(classNames).filter(function(className) {
+      return classNames[className];
+    }).join(' ');
+  } else {
+    return Array.prototype.join.call(arguments, ' ');
+  }
+}
+
+module.exports = cx;
+
 },{}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/react.js":[function(require,module,exports){
 'use strict';
 
@@ -16007,7 +16614,7 @@ function mixin(x, y) {
 module.exports = {
   compile: compile
 };
-},{"react":"react","react/lib/cx":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/react/lib/cx.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js":[function(require,module,exports){
+},{"react":"react","react/lib/cx":"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-form/node_modules/uvdom/node_modules/react/lib/cx.js"}],"/Users/giulio/Documents/Projects/github/tcomb-react/node_modules/tcomb-validation/index.js":[function(require,module,exports){
 (function (root, factory) {
   'use strict';
   if (typeof define === 'function' && define.amd) {
@@ -16027,7 +16634,7 @@ module.exports = {
   var Arr = t.Arr;
   var struct = t.struct;
   var list = t.list;
-  var format = t.util.format;
+  var format = t.format;
 
   //
   // domain model
@@ -16083,8 +16690,7 @@ module.exports = {
   }
 
   function recurse(x, type, path) {
-    var kind = t.util.getKind(type);
-    return validators[kind](x, type, path);
+    return validators[type.meta.kind](x, type, path);
   }
 
   var validators = validate.validators = {};
@@ -16216,7 +16822,7 @@ module.exports = {
   };
 
   // exports
-  t.util.mixin(t, {
+  t.mixin(t, {
     ValidationError: ValidationError,
     ValidationResult: ValidationResult,
     validate: validate
@@ -16240,46 +16846,20 @@ module.exports = {
 
   'use strict';
 
-  var failed = false;
-
-  function onFail(message) {
+  function fail(message) {
     // start debugger only once
-    if (!failed) {
-      /*
-        DEBUG HINT:
-        if you are reading this, chances are that there is a bug in your system
-        see the Call Stack to find out what's wrong..
-      */
+    if (!fail.failed) {
       /*jshint debug: true*/
       debugger;
     }
-    failed = true;
-    throw new Error(message);
+    fail.failed = true;
+    throw new TypeError(message);
   }
 
-  var options = {
-    onFail: onFail
-  };
-
-  function fail(message) {
-    /*
-      DEBUG HINT:
-      if you are reading this, chances are that there is a bug in your system
-      see the Call Stack to find out what's wrong..
-    */
-    options.onFail(message);
-  }
-
-  function assert(guard) {
+  function assert(guard, message) {
     if (guard !== true) {
-      var args = slice.call(arguments, 1);
-      var message = args[0] ? format.apply(null, args) : 'assert failed';
-      /*
-        DEBUG HINT:
-        if you are reading this, chances are that there is a bug in your system
-        see the Call Stack to find out what's wrong..
-      */
-      fail(message);
+      message = message ? format.apply(null, slice.call(arguments, 1)) : 'assert failed';
+      exports.fail(message);
     }
   }
 
@@ -16290,9 +16870,7 @@ module.exports = {
   var slice = Array.prototype.slice;
 
   function mixin(target, source, overwrite) {
-    if (Nil.is(source)) {
-      return target;
-    }
+    if (Nil.is(source)) { return target; }
     for (var k in source) {
       if (source.hasOwnProperty(k)) {
         if (overwrite !== true) {
@@ -16325,17 +16903,19 @@ module.exports = {
     return str;
   }
 
+  function getFunctionName(f) {
+    assert(typeof f === 'function', 'Invalid argument `f` = `%s` supplied to `getFunctionName()`', f);
+    return f.displayName || f.name || format('<function%s>', f.length);
+  }
+
   function replacer(key, value) {
-    if (typeof value === 'function') {
-      return format('Func', value.name);
-    }
-    return value;
+    return Func.is(value) ? getFunctionName(value) : value;
   }
 
   format.formatters = {
-    s: function formatString(x) { return String(x); },
-    j: function formatJSON(x) {
-      try {
+    s: function (x) { return String(x); },
+    j: function (x) {
+      try { // handle circular references
         return JSON.stringify(x, replacer);
       } catch (e) {
         return String(x);
@@ -16343,23 +16923,13 @@ module.exports = {
     }
   };
 
-  function getName(type) {
-    assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `getName()`', type);
+  function getTypeName(type) {
+    assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `getTypeName()`', type);
     return type.meta.name;
   }
 
-  function getFunctionName(f) {
-    assert(typeof f === 'function', 'Invalid argument `f` = `%s` supplied to `getFunctionName()`', f);
-    return f.displayName || f.name || format('<function%s>', f.length);
-  }
-
-  function getKind(type) {
-    assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `geKind()`', type);
-    return type.meta.kind;
-  }
-
   function blockNew(x, type) {
-    assert(!(x instanceof type), 'Operator `new` is forbidden for type `%s`', getName(type));
+    assert(!(x instanceof type), 'Operator `new` is forbidden for type `%s`', getTypeName(type));
   }
 
   function shallowCopy(x) {
@@ -16383,16 +16953,16 @@ module.exports = {
   }
 
   update.commands = {
-    '$apply': function $apply(f, value) {
+    '$apply': function (f, value) {
       assert(Func.is(f));
       return f(value);
     },
-    '$push': function $push(elements, arr) {
+    '$push': function (elements, arr) {
       assert(Arr.is(elements));
       assert(Arr.is(arr));
       return arr.concat(elements);
     },
-    '$remove': function $remove(keys, obj) {
+    '$remove': function (keys, obj) {
       assert(Arr.is(keys));
       assert(Obj.is(obj));
       for (var i = 0, len = keys.length ; i < len ; i++ ) {
@@ -16400,18 +16970,18 @@ module.exports = {
       }
       return obj;
     },
-    '$set': function $set(value) {
+    '$set': function (value) {
       return value;
     },
-    '$splice': function $splice(splices, arr) {
+    '$splice': function (splices, arr) {
       assert(list(Arr).is(splices));
       assert(Arr.is(arr));
-      return splices.reduce(function reducer(acc, splice) {
+      return splices.reduce(function (acc, splice) {
         acc.splice.apply(acc, splice);
         return acc;
       }, arr);
     },
-    '$swap': function $swap(config, arr) {
+    '$swap': function (config, arr) {
       assert(Obj.is(config));
       assert(Num.is(config.from));
       assert(Num.is(config.to));
@@ -16421,7 +16991,7 @@ module.exports = {
       arr[config.from] = element;
       return arr;
     },
-    '$unshift': function $unshift(elements, arr) {
+    '$unshift': function (elements, arr) {
       assert(Arr.is(elements));
       assert(Arr.is(arr));
       return elements.concat(arr);
@@ -16437,21 +17007,12 @@ module.exports = {
 
   function irreducible(name, is) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a string
     assert(typeof name === 'string', 'Invalid argument `name` = `%s` supplied to `irreducible()`', name);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a function
     assert(typeof is === 'function', 'Invalid argument `is` = `%s` supplied to `irreducible()`', is);
 
     function Irreducible(value) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
       blockNew(this, Irreducible);
-
-      // DEBUG HINT: if the debugger stops here, the first argument is invalid
-      // mouse over the `value` variable to see what's wrong. In `name` there is the name of the type
       assert(is(value), 'Invalid argument `value` = `%s` supplied to irreducible type `%s`', value, name);
-
       return value;
     }
 
@@ -16467,95 +17028,79 @@ module.exports = {
     return Irreducible;
   }
 
-  var Any = irreducible('Any', function isAny() {
+  var Any = irreducible('Any', function () {
     return true;
   });
 
-  var Nil = irreducible('Nil', function isNil(x) {
+  var Nil = irreducible('Nil', function (x) {
     return x === null || x === void 0;
   });
 
-  var Str = irreducible('Str', function isStr(x) {
+  var Str = irreducible('Str', function (x) {
     return typeof x === 'string';
   });
 
-  var Num = irreducible('Num', function isNum(x) {
+  var Num = irreducible('Num', function (x) {
     return typeof x === 'number' && isFinite(x) && !isNaN(x);
   });
 
-  var Bool = irreducible('Bool', function isBool(x) {
+  var Bool = irreducible('Bool', function (x) {
     return x === true || x === false;
   });
 
-  var Arr = irreducible('Arr', function isArr(x) {
+  var Arr = irreducible('Arr', function (x) {
     return x instanceof Array;
   });
 
-  var Obj = irreducible('Obj', function isObj(x) {
+  var Obj = irreducible('Obj', function (x) {
     return !Nil.is(x) && typeof x === 'object' && !Arr.is(x);
   });
 
-  var Func = irreducible('Func', function isFunc(x) {
+  var Func = irreducible('Func', function (x) {
     return typeof x === 'function';
   });
 
-  var Err = irreducible('Err', function isErr(x) {
+  var Err = irreducible('Err', function (x) {
     return x instanceof Error;
   });
 
-  var Re = irreducible('Re', function isRe(x) {
+  var Re = irreducible('Re', function (x) {
     return x instanceof RegExp;
   });
 
-  var Dat = irreducible('Dat', function isDat(x) {
+  var Dat = irreducible('Dat', function (x) {
     return x instanceof Date;
   });
 
-  var Type = irreducible('Type', function isType(x) {
+  var Type = irreducible('Type', function (x) {
     return Func.is(x) && Obj.is(x.meta);
   });
 
   function struct(props, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a dict of types
-    // mouse over the `props` variable to see what's wrong
     assert(dict(Str, Type).is(props), 'Invalid argument `props` = `%s` supplied to `struct` combinator', props);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `struct` combinator', name);
-
-    // DEBUG HINT: always give a name to a type, the debug will be easier
     name = name || format('{%s}', Object.keys(props).map(function (prop) {
-      return format('%s: %s', prop, getName(props[prop]));
+      return format('%s: %s', prop, getTypeName(props[prop]));
     }).join(', '));
 
     function Struct(value, mut) {
-
       // makes Struct idempotent
       if (Struct.is(value)) {
         return value;
       }
-
-      // DEBUG HINT: if the debugger stops here, the first argument is invalid
-      // mouse over the `value` variable to see what's wrong. In `name` there is the name of the type
       assert(Obj.is(value), 'Invalid argument `value` = `%s` supplied to struct type `%s`', value, name);
-
       // makes `new` optional
       if (!(this instanceof Struct)) {
         return new Struct(value, mut);
       }
-
       for (var k in props) {
         if (props.hasOwnProperty(k)) {
           var expected = props[k];
           var actual = value[k];
-          // DEBUG HINT: if the debugger stops here, the `actual` value supplied to the `expected` type is invalid
-          // mouse over the `actual` and `expected` variables to see what's wrong
           this[k] = expected(actual, mut);
         }
       }
-
       if (mut !== true) {
         Object.freeze(this);
       }
@@ -16569,15 +17114,15 @@ module.exports = {
 
     Struct.displayName = name;
 
-    Struct.is = function isStruct(x) {
+    Struct.is = function (x) {
       return x instanceof Struct;
     };
 
-    Struct.update = function updateStruct(instance, spec, value) {
-      return new Struct(update(instance, spec, value));
+    Struct.update = function (instance, spec) {
+      return new Struct(exports.update(instance, spec));
     };
 
-    Struct.extend = function extendStruct(arr, name) {
+    Struct.extend = function (arr, name) {
       arr = [].concat(arr).map(function (x) {
         return Obj.is(x) ? x : x.meta.props;
       });
@@ -16592,36 +17137,18 @@ module.exports = {
 
   function union(types, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a list of types
     assert(list(Type).is(types), 'Invalid argument `types` = `%s` supplied to `union` combinator', types);
-
     var len = types.length;
-    var defaultName = types.map(getName).join(' | ');
-
-    // DEBUG HINT: if the debugger stops here, there are too few types (they must be at least two)
+    var defaultName = types.map(getTypeName).join(' | ');
     assert(len >= 2, 'Invalid argument `types` = `%s` supplied to `union` combinator, provide at least two types', defaultName);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `union` combinator', name);
-
     name = name || defaultName;
 
     function Union(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
       blockNew(this, Union);
-
-      // DEBUG HINT: if the debugger stops here, you must implement the `dispatch` static method for this type
       assert(Func.is(Union.dispatch), 'Unimplemented `dispatch()` function for union type `%s`', name);
-
       var type = Union.dispatch(value);
-
-      // DEBUG HINT: if the debugger stops here, the `dispatch` static method returns no type
       assert(Type.is(type), 'The `dispatch()` function of union type `%s` returns no type constructor', name);
-
-      // DEBUG HINT: if the debugger stops here, `value` can't be converted to `type`
-      // mouse over the `value` and `type` variables to see what's wrong
       return type(value, mut);
     }
 
@@ -16633,15 +17160,15 @@ module.exports = {
 
     Union.displayName = name;
 
-    Union.is = function isUnion(x) {
-      return types.some(function isType(type) {
+    Union.is = function (x) {
+      return types.some(function (type) {
         return type.is(x);
       });
     };
 
     // default dispatch implementation
-    Union.dispatch = function dispatch(x) {
-      for (var i = 0, len = types.length ; i < len ; i++ ) {
+    Union.dispatch = function (x) {
+      for (var i = 0 ; i < len ; i++ ) {
         if (types[i].is(x)) {
           return types[i];
         }
@@ -16653,27 +17180,16 @@ module.exports = {
 
   function maybe(type, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a type
     assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `maybe` combinator', type);
-
     // makes the combinator idempotent and handle Any, Nil
-    if (getKind(type) === 'maybe' || type === Any || type === Nil) {
+    if (type.meta.kind === 'maybe' || type === Any || type === Nil) {
       return type;
     }
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(Nil.is(name) || Str.is(name), 'Invalid argument `name` = `%s` supplied to `maybe` combinator', name);
-
-    name = name || ('?' + getName(type));
+    name = name || ('?' + getTypeName(type));
 
     function Maybe(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
       blockNew(this, Maybe);
-
-      // DEBUG HINT: if the debugger stops here, `value` can't be converted to `type`
-      // mouse over the `value` and `type` variables to see what's wrong
       return Nil.is(value) ? null : type(value, mut);
     }
 
@@ -16685,7 +17201,7 @@ module.exports = {
 
     Maybe.displayName = name;
 
-    Maybe.is = function isMaybe(x) {
+    Maybe.is = function (x) {
       return Nil.is(x) || type.is(x);
     };
 
@@ -16694,28 +17210,14 @@ module.exports = {
 
   function enums(map, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a hash
-    // mouse over the `map` variable to see what's wrong
     assert(Obj.is(map), 'Invalid argument `map` = `%s` supplied to `enums` combinator', map);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `enums` combinator', name);
-
-    // cache enums
-    var keys = Object.keys(map);
-
+    var keys = Object.keys(map); // cache enums
     name = name || keys.map(function (k) { return JSON.stringify(k); }).join(' | ');
 
     function Enums(value) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
       blockNew(this, Enums);
-
-      // DEBUG HINT: if the debugger stops here, the value is not one of the defined enums
-      // mouse over the `value`, `name` and `keys` variables to see what's wrong
       assert(Enums.is(value), 'Invalid argument `value` = `%s` supplied to enums type `%s`, expected one of %j', value, name, keys);
-
       return value;
     }
 
@@ -16727,17 +17229,17 @@ module.exports = {
 
     Enums.displayName = name;
 
-    Enums.is = function isEnums(x) {
+    Enums.is = function (x) {
       return Str.is(x) && map.hasOwnProperty(x);
     };
 
     return Enums;
   }
 
-  enums.of = function enumsOf(keys, name) {
+  enums.of = function (keys, name) {
     keys = Str.is(keys) ? keys.split(' ') : keys;
     var value = {};
-    keys.forEach(function setEnum(k) {
+    keys.forEach(function (k) {
       value[k] = k;
     });
     return enums(value, name);
@@ -16745,39 +17247,30 @@ module.exports = {
 
   function tuple(types, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a list of types
     assert(list(Type).is(types), 'Invalid argument `types` = `%s` supplied to `tuple` combinator', types);
-
-    var len = types.length;
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a string
-    // mouse over the `name` variable to see what's wrong
+    var len = types.length; // cache types length
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `tuple` combinator', name);
+    name = name || format('[%s]', types.map(getTypeName).join(', '));
 
-    name = name || format('[%s]', types.map(getName).join(', '));
+    function isTuple(x) {
+      return types.every(function (type, i) {
+        return type.is(x[i]);
+      });
+    }
 
     function Tuple(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, the value is not one of the defined enums
-      // mouse over the `value`, `name` and `len` variables to see what's wrong
       assert(Arr.is(value) && value.length === len, 'Invalid argument `value` = `%s` supplied to tuple type `%s`, expected an `Arr` of length `%s`', value, name, len);
-
       var frozen = (mut !== true);
-
       // makes Tuple idempotent
-      if (Tuple.isTuple(value) && Object.isFrozen(value) === frozen) {
+      if (isTuple(value) && Object.isFrozen(value) === frozen) {
         return value;
       }
-
       var arr = [];
       for (var i = 0 ; i < len ; i++) {
         var expected = types[i];
         var actual = value[i];
-        // DEBUG HINT: if the debugger stops here, the `actual` value supplied to the `expected` type is invalid
-        // mouse over the `actual` and `expected` variables to see what's wrong
         arr.push(expected(actual, mut));
       }
-
       if (frozen) {
         Object.freeze(arr);
       }
@@ -16793,18 +17286,12 @@ module.exports = {
 
     Tuple.displayName = name;
 
-    Tuple.isTuple = function isTuple(x) {
-      return types.every(function isType(type, i) {
-        return type.is(x[i]);
-      });
+    Tuple.is = function (x) {
+      return Arr.is(x) && x.length === len && isTuple(x);
     };
 
-    Tuple.is = function isTuple(x) {
-      return Arr.is(x) && x.length === len && Tuple.isTuple(x);
-    };
-
-    Tuple.update = function updateTuple(instance, spec, value) {
-      return Tuple(update(instance, spec, value));
+    Tuple.update = function (instance, spec) {
+      return Tuple(exports.update(instance, spec));
     };
 
     return Tuple;
@@ -16812,29 +17299,14 @@ module.exports = {
 
   function subtype(type, predicate, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a type
     assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `subtype` combinator', type);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a function
     assert(Func.is(predicate), 'Invalid argument `predicate` = `%s` supplied to `subtype` combinator', predicate);
-
-    // DEBUG HINT: if the debugger stops here, the third argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `subtype` combinator', name);
-
-    // DEBUG HINT: always give a name to a type, the debug will be easier
-    name = name || format('{%s | %s}', getName(type), getFunctionName(predicate));
+    name = name || format('{%s | %s}', getTypeName(type), getFunctionName(predicate));
 
     function Subtype(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
       blockNew(this, Subtype);
-
-      // DEBUG HINT: if the debugger stops here, the value cannot be converted to the base type
       var x = type(value, mut);
-
-      // DEBUG HINT: if the debugger stops here, the value is converted to the base type
-      // but the predicate returns `false`
       assert(predicate(x), 'Invalid argument `value` = `%s` supplied to subtype type `%s`', value, name);
       return x;
     }
@@ -16848,12 +17320,12 @@ module.exports = {
 
     Subtype.displayName = name;
 
-    Subtype.is = function isSubtype(x) {
+    Subtype.is = function (x) {
       return type.is(x) && predicate(x);
     };
 
-    Subtype.update = function updateSubtype(instance, spec, value) {
-      return Subtype(update(instance, spec, value));
+    Subtype.update = function (instance, spec) {
+      return Subtype(exports.update(instance, spec));
     };
 
     return Subtype;
@@ -16861,39 +17333,26 @@ module.exports = {
 
   function list(type, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a type
     assert(Type.is(type), 'Invalid argument `type` = `%s` supplied to `list` combinator', type);
-
-    // DEBUG HINT: if the debugger stops here, the third argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `list` combinator', name);
+    name = name || format('Array<%s>', getTypeName(type));
 
-    // DEBUG HINT: always give a name to a type, the debug will be easier
-    name = name || format('Array<%s>', getName(type));
+    function isList(x) {
+      return x.every(type.is);
+    }
 
     function List(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, you have used the `new` operator but it's forbidden
-
-      // DEBUG HINT: if the debugger stops here, the value is not one of the defined enums
-      // mouse over the `value` and `name` variables to see what's wrong
       assert(Arr.is(value), 'Invalid argument `value` = `%s` supplied to list type `%s`', value, name);
-
       var frozen = (mut !== true);
-
       // makes List idempotent
-      if (List.isList(value) && Object.isFrozen(value) === frozen) {
+      if (isList(value) && Object.isFrozen(value) === frozen) {
         return value;
       }
-
       var arr = [];
       for (var i = 0, len = value.length ; i < len ; i++ ) {
         var actual = value[i];
-        // DEBUG HINT: if the debugger stops here, the `actual` value supplied to the `type` type is invalid
-        // mouse over the `actual` and `type` variables to see what's wrong
         arr.push(type(actual, mut));
       }
-
       if (frozen) {
         Object.freeze(arr);
       }
@@ -16908,16 +17367,12 @@ module.exports = {
 
     List.displayName = name;
 
-    List.isList = function isList(x) {
-      return x.every(type.is);
+    List.is = function (x) {
+      return Arr.is(x) && isList(x);
     };
 
-    List.is = function isList(x) {
-      return Arr.is(x) && List.isList(x);
-    };
-
-    List.update = function updateList(instance, spec, value) {
-      return List(update(instance, spec, value));
+    List.update = function (instance, spec) {
+      return List(exports.update(instance, spec));
     };
 
     return List;
@@ -16925,45 +17380,35 @@ module.exports = {
 
   function dict(domain, codomain, name) {
 
-    // DEBUG HINT: if the debugger stops here, the first argument is not a type
     assert(Type.is(domain), 'Invalid argument `domain` = `%s` supplied to `dict` combinator', domain);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a type
     assert(Type.is(codomain), 'Invalid argument `codomain` = `%s` supplied to `dict` combinator', codomain);
-
-    // DEBUG HINT: if the debugger stops here, the third argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `dict` combinator', name);
+    name = name || format('{[key:%s]: %s}', getTypeName(domain), getTypeName(codomain));
 
-    // DEBUG HINT: always give a name to a type, the debug will be easier
-    name = name || format('{[key:%s]: %s}', getName(domain), getName(codomain));
+    function isDict(x) {
+      for (var k in x) {
+        if (x.hasOwnProperty(k)) {
+          if (!domain.is(k) || !codomain.is(x[k])) { return false; }
+        }
+      }
+      return true;
+    }
 
     function Dict(value, mut) {
-
-      // DEBUG HINT: if the debugger stops here, the value is not an object
-      // mouse over the `value` and `name` variables to see what's wrong
       assert(Obj.is(value), 'Invalid argument `value` = `%s` supplied to dict type `%s`', value, name);
-
       var frozen = (mut !== true);
-
       // makes Dict idempotent
-      if (Dict.isDict(value) && Object.isFrozen(value) === frozen) {
+      if (isDict(value) && Object.isFrozen(value) === frozen) {
         return value;
       }
-
       var obj = {};
       for (var k in value) {
         if (value.hasOwnProperty(k)) {
-          // DEBUG HINT: if the debugger stops here, the `k` value supplied to the `domain` type is invalid
-          // mouse over the `k` and `domain` variables to see what's wrong
           k = domain(k);
           var actual = value[k];
-          // DEBUG HINT: if the debugger stops here, the `actual` value supplied to the `codomain` type is invalid
-          // mouse over the `actual` and `codomain` variables to see what's wrong
           obj[k] = codomain(actual, mut);
         }
       }
-
       if (frozen) {
         Object.freeze(obj);
       }
@@ -16979,59 +17424,37 @@ module.exports = {
 
     Dict.displayName = name;
 
-    Dict.isDict = function isDict(x) {
-      for (var k in x) {
-        if (x.hasOwnProperty(k)) {
-          if (!domain.is(k) || !codomain.is(x[k])) { return false; }
-        }
-      }
-      return true;
+    Dict.is = function (x) {
+      return Obj.is(x) && isDict(x);
     };
 
-    Dict.is = function isDict(x) {
-      return Obj.is(x) && Dict.isDict(x);
-    };
-
-
-    Dict.update = function updateDict(instance, spec, value) {
-      return Dict(update(instance, spec, value));
+    Dict.update = function (instance, spec) {
+      return Dict(exports.update(instance, spec));
     };
 
     return Dict;
+  }
+
+  function isInstrumented(f) {
+    return Func.is(f) && Obj.is(f.type);
   }
 
   function func(domain, codomain, name) {
 
     // handle handy syntax for unary functions
     domain = Arr.is(domain) ? domain : [domain];
-
-    // DEBUG HINT: if the debugger stops here, the first argument is not a list of types
     assert(list(Type).is(domain), 'Invalid argument `domain` = `%s` supplied to `func` combinator', domain);
-
-    // DEBUG HINT: if the debugger stops here, the second argument is not a type
     assert(Type.is(codomain), 'Invalid argument `codomain` = `%s` supplied to `func` combinator', codomain);
-
-    // DEBUG HINT: if the debugger stops here, the third argument is not a string
-    // mouse over the `name` variable to see what's wrong
     assert(maybe(Str).is(name), 'Invalid argument `name` = `%s` supplied to `func` combinator', name);
-
-    // DEBUG HINT: always give a name to a type, the debug will be easier
-    name = name || format('(%s) -> %s', domain.map(getName).join(', '), getName(codomain));
-
-    // cache the domain length
-    var domainLen = domain.length;
+    name = name || format('(%s) => %s', domain.map(getTypeName).join(', '), getTypeName(codomain));
+    var domainLen = domain.length; // cache the domain length
 
     function Func(value) {
-
-      // automatically instrument the function if is not already instrumented
-      if (!func.is(value)) {
-        value = Func.of(value);
+      // automatically instrument the function
+      if (!isInstrumented(value)) {
+        return Func.of(value);
       }
-
-      // DEBUG HINT: if the debugger stops here, the first argument is invalid
-      // mouse over the `value` and `name` variables to see what's wrong
       assert(Func.is(value), 'Invalid argument `value` = `%s` supplied to func type `%s`', value, name);
-
       return value;
     }
 
@@ -17044,18 +17467,17 @@ module.exports = {
 
     Func.displayName = name;
 
-    Func.is = function isFunc(x) {
-      return func.is(x) &&
-        x.func.domain.length === domain.length &&
-        x.func.domain.every(function isEqual(type, i) {
+    Func.is = function (x) {
+      return isInstrumented(x) &&
+        x.type.domain.length === domainLen &&
+        x.type.domain.every(function (type, i) {
           return type === domain[i];
         }) &&
-        x.func.codomain === codomain;
+        x.type.codomain === codomain;
     };
 
-    Func.of = function funcOf(f) {
+    Func.of = function (f) {
 
-      // DEBUG HINT: if the debugger stops here, f is not a function
       assert(typeof f === 'function');
 
       // makes Func.of idempotent
@@ -17064,40 +17486,27 @@ module.exports = {
       }
 
       function fn() {
-
         var args = slice.call(arguments);
-        var len = Math.min(args.length, domainLen);
-
-        // DEBUG HINT: if the debugger stops here, you provided wrong arguments to the function
-        // mouse over the `args` variable to see what's wrong
-        args = tuple(domain.slice(0, len))(args);
-
+        var len = args.length;
+        var argsType = tuple(domain.slice(0, len));
+        args = argsType(args);
         if (len === domainLen) {
-
           /* jshint validthis: true */
-          var r = f.apply(this, args);
-
-          // DEBUG HINT: if the debugger stops here, the return value of the function is invalid
-          // mouse over the `r` variable to see what's wrong
-          r = codomain(r);
-
-          return r;
-
+          return codomain(f.apply(this, args));
         } else {
-
           var curried = Function.prototype.bind.apply(f, [this].concat(args));
           var newdomain = func(domain.slice(len), codomain);
           return newdomain.of(curried);
-
         }
-
       }
 
-      fn.func = {
+      fn.type = {
         domain: domain,
         codomain: codomain,
         f: f
       };
+
+      fn.displayName = getFunctionName(f);
 
       return fn;
 
@@ -17107,28 +17516,16 @@ module.exports = {
 
   }
 
-  // returns true if x is an instrumented function
-  func.is = function isFunc(f) {
-    return Func.is(f) && Obj.is(f.func);
-  };
-
-  return {
-
-    util: {
-      format: format,
-      getKind: getKind,
-      getFunctionName: getFunctionName,
-      getName: getName,
-      mixin: mixin,
-      slice: slice,
-      shallowCopy: shallowCopy,
-      update: update
-    },
-
-    options: options,
+  var exports = {
+    format: format,
+    getFunctionName: getFunctionName,
+    getTypeName: getTypeName,
+    mixin: mixin,
+    slice: slice,
+    shallowCopy: shallowCopy,
+    update: update,
     assert: assert,
     fail: fail,
-
     Any: Any,
     Nil: Nil,
     Str: Str,
@@ -17141,7 +17538,6 @@ module.exports = {
     Re: Re,
     Dat: Dat,
     Type: Type,
-
     irreducible: irreducible,
     struct: struct,
     enums: enums,
@@ -17153,6 +17549,9 @@ module.exports = {
     dict: dict,
     func: func
   };
+
+  return exports;
+
 }));
 
 },{}],"/usr/local/lib/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
@@ -17168,11 +17567,12 @@ var ieee754 = require('ieee754')
 var isArray = require('is-array')
 
 exports.Buffer = Buffer
-exports.SlowBuffer = Buffer
+exports.SlowBuffer = SlowBuffer
 exports.INSPECT_MAX_BYTES = 50
 Buffer.poolSize = 8192 // not used by this implementation
 
 var kMaxLength = 0x3fffffff
+var rootParent = {}
 
 /**
  * If `Buffer.TYPED_ARRAY_SUPPORT`:
@@ -17232,8 +17632,6 @@ function Buffer (subject, encoding, noZero) {
   if (type === 'number')
     length = subject > 0 ? subject >>> 0 : 0
   else if (type === 'string') {
-    if (encoding === 'base64')
-      subject = base64clean(subject)
     length = Buffer.byteLength(subject, encoding)
   } else if (type === 'object' && subject !== null) { // assume object is array-like
     if (subject.type === 'Buffer' && isArray(subject.data))
@@ -17242,7 +17640,7 @@ function Buffer (subject, encoding, noZero) {
   } else
     throw new TypeError('must start with number, buffer, array or string')
 
-  if (this.length > kMaxLength)
+  if (length > kMaxLength)
     throw new RangeError('Attempt to allocate Buffer larger than maximum ' +
       'size: 0x' + kMaxLength.toString(16) + ' bytes')
 
@@ -17278,6 +17676,18 @@ function Buffer (subject, encoding, noZero) {
     }
   }
 
+  if (length > 0 && length <= Buffer.poolSize)
+    buf.parent = rootParent
+
+  return buf
+}
+
+function SlowBuffer(subject, encoding, noZero) {
+  if (!(this instanceof SlowBuffer))
+    return new SlowBuffer(subject, encoding, noZero)
+
+  var buf = new Buffer(subject, encoding, noZero)
+  delete buf.parent
   return buf
 }
 
@@ -17428,7 +17838,7 @@ Buffer.prototype.toString = function (encoding, start, end) {
 }
 
 Buffer.prototype.equals = function (b) {
-  if(!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
+  if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
   return Buffer.compare(this, b) === 0
 }
 
@@ -17488,7 +17898,7 @@ function hexWrite (buf, string, offset, length) {
 }
 
 function utf8Write (buf, string, offset, length) {
-  var charsWritten = blitBuffer(utf8ToBytes(string), buf, offset, length)
+  var charsWritten = blitBuffer(utf8ToBytes(string, buf.length - offset), buf, offset, length)
   return charsWritten
 }
 
@@ -17507,7 +17917,7 @@ function base64Write (buf, string, offset, length) {
 }
 
 function utf16leWrite (buf, string, offset, length) {
-  var charsWritten = blitBuffer(utf16leToBytes(string), buf, offset, length)
+  var charsWritten = blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length, 2)
   return charsWritten
 }
 
@@ -17527,6 +17937,10 @@ Buffer.prototype.write = function (string, offset, length, encoding) {
   }
 
   offset = Number(offset) || 0
+
+  if (length < 0 || offset < 0 || offset > this.length)
+    throw new RangeError('attempt to write outside buffer bounds');
+
   var remaining = this.length - offset
   if (!length) {
     length = remaining
@@ -17605,13 +18019,19 @@ function asciiSlice (buf, start, end) {
   end = Math.min(buf.length, end)
 
   for (var i = start; i < end; i++) {
-    ret += String.fromCharCode(buf[i])
+    ret += String.fromCharCode(buf[i] & 0x7F)
   }
   return ret
 }
 
 function binarySlice (buf, start, end) {
-  return asciiSlice(buf, start, end)
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++) {
+    ret += String.fromCharCode(buf[i])
+  }
+  return ret
 }
 
 function hexSlice (buf, start, end) {
@@ -17660,16 +18080,21 @@ Buffer.prototype.slice = function (start, end) {
   if (end < start)
     end = start
 
+  var newBuf
   if (Buffer.TYPED_ARRAY_SUPPORT) {
-    return Buffer._augment(this.subarray(start, end))
+    newBuf = Buffer._augment(this.subarray(start, end))
   } else {
     var sliceLen = end - start
-    var newBuf = new Buffer(sliceLen, undefined, true)
+    newBuf = new Buffer(sliceLen, undefined, true)
     for (var i = 0; i < sliceLen; i++) {
       newBuf[i] = this[i + start]
     }
-    return newBuf
   }
+
+  if (newBuf.length)
+    newBuf.parent = this.parent || this
+
+  return newBuf
 }
 
 /*
@@ -17680,6 +18105,35 @@ function checkOffset (offset, ext, length) {
     throw new RangeError('offset is not uint')
   if (offset + ext > length)
     throw new RangeError('Trying to access beyond buffer length')
+}
+
+Buffer.prototype.readUIntLE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100))
+    val += this[offset + i] * mul
+
+  return val
+}
+
+Buffer.prototype.readUIntBE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset + --byteLength]
+  var mul = 1
+  while (byteLength > 0 && (mul *= 0x100))
+    val += this[offset + --byteLength] * mul;
+
+  return val
 }
 
 Buffer.prototype.readUInt8 = function (offset, noAssert) {
@@ -17718,6 +18172,44 @@ Buffer.prototype.readUInt32BE = function (offset, noAssert) {
       ((this[offset + 1] << 16) |
       (this[offset + 2] << 8) |
       this[offset + 3])
+}
+
+Buffer.prototype.readIntLE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100))
+    val += this[offset + i] * mul
+  mul *= 0x80
+
+  if (val >= mul)
+    val -= Math.pow(2, 8 * byteLength)
+
+  return val
+}
+
+Buffer.prototype.readIntBE = function (offset, byteLength, noAssert) {
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkOffset(offset, byteLength, this.length)
+
+  var i = byteLength
+  var mul = 1
+  var val = this[offset + --i]
+  while (i > 0 && (mul *= 0x100))
+    val += this[offset + --i] * mul
+  mul *= 0x80
+
+  if (val >= mul)
+    val -= Math.pow(2, 8 * byteLength)
+
+  return val
 }
 
 Buffer.prototype.readInt8 = function (offset, noAssert) {
@@ -17788,8 +18280,40 @@ Buffer.prototype.readDoubleBE = function (offset, noAssert) {
 
 function checkInt (buf, value, offset, ext, max, min) {
   if (!Buffer.isBuffer(buf)) throw new TypeError('buffer must be a Buffer instance')
-  if (value > max || value < min) throw new TypeError('value is out of bounds')
-  if (offset + ext > buf.length) throw new TypeError('index out of range')
+  if (value > max || value < min) throw new RangeError('value is out of bounds')
+  if (offset + ext > buf.length) throw new RangeError('index out of range')
+}
+
+Buffer.prototype.writeUIntLE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+
+  var mul = 1
+  var i = 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100))
+    this[offset + i] = (value / mul) >>> 0 & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeUIntBE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
+  if (!noAssert)
+    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+
+  var i = byteLength - 1
+  var mul = 1
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100))
+    this[offset + i] = (value / mul) >>> 0 & 0xFF
+
+  return offset + byteLength
 }
 
 Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
@@ -17869,6 +18393,50 @@ Buffer.prototype.writeUInt32BE = function (value, offset, noAssert) {
   return offset + 4
 }
 
+Buffer.prototype.writeIntLE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert) {
+    checkInt(this,
+             value,
+             offset,
+             byteLength,
+             Math.pow(2, 8 * byteLength - 1) - 1,
+             -Math.pow(2, 8 * byteLength - 1))
+  }
+
+  var i = 0
+  var mul = 1
+  var sub = value < 0 ? 1 : 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100))
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeIntBE = function (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset >>> 0
+  if (!noAssert) {
+    checkInt(this,
+             value,
+             offset,
+             byteLength,
+             Math.pow(2, 8 * byteLength - 1) - 1,
+             -Math.pow(2, 8 * byteLength - 1))
+  }
+
+  var i = byteLength - 1
+  var mul = 1
+  var sub = value < 0 ? 1 : 0
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100))
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+
+  return offset + byteLength
+}
+
 Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
@@ -17934,8 +18502,9 @@ Buffer.prototype.writeInt32BE = function (value, offset, noAssert) {
 }
 
 function checkIEEE754 (buf, value, offset, ext, max, min) {
-  if (value > max || value < min) throw new TypeError('value is out of bounds')
-  if (offset + ext > buf.length) throw new TypeError('index out of range')
+  if (value > max || value < min) throw new RangeError('value is out of bounds')
+  if (offset + ext > buf.length) throw new RangeError('index out of range')
+  if (offset < 0) throw new RangeError('index out of range')
 }
 
 function writeFloat (buf, value, offset, littleEndian, noAssert) {
@@ -17974,18 +18543,19 @@ Buffer.prototype.copy = function (target, target_start, start, end) {
 
   if (!start) start = 0
   if (!end && end !== 0) end = this.length
+  if (target_start >= target.length) target_start = target.length
   if (!target_start) target_start = 0
+  if (end > 0 && end < start) end = start
 
   // Copy 0 bytes; we're done
-  if (end === start) return
-  if (target.length === 0 || source.length === 0) return
+  if (end === start) return 0
+  if (target.length === 0 || source.length === 0) return 0
 
   // Fatal error conditions
-  if (end < start) throw new TypeError('sourceEnd < sourceStart')
-  if (target_start < 0 || target_start >= target.length)
-    throw new TypeError('targetStart out of bounds')
-  if (start < 0 || start >= source.length) throw new TypeError('sourceStart out of bounds')
-  if (end < 0 || end > source.length) throw new TypeError('sourceEnd out of bounds')
+  if (target_start < 0)
+    throw new RangeError('targetStart out of bounds')
+  if (start < 0 || start >= source.length) throw new RangeError('sourceStart out of bounds')
+  if (end < 0) throw new RangeError('sourceEnd out of bounds')
 
   // Are we oob?
   if (end > this.length)
@@ -18002,6 +18572,8 @@ Buffer.prototype.copy = function (target, target_start, start, end) {
   } else {
     target._set(this.subarray(start, start + len), target_start)
   }
+
+  return len
 }
 
 // fill(value, start=0, end=buffer.length)
@@ -18010,14 +18582,14 @@ Buffer.prototype.fill = function (value, start, end) {
   if (!start) start = 0
   if (!end) end = this.length
 
-  if (end < start) throw new TypeError('end < start')
+  if (end < start) throw new RangeError('end < start')
 
   // Fill 0 bytes; we're done
   if (end === start) return
   if (this.length === 0) return
 
-  if (start < 0 || start >= this.length) throw new TypeError('start out of bounds')
-  if (end < 0 || end > this.length) throw new TypeError('end out of bounds')
+  if (start < 0 || start >= this.length) throw new RangeError('start out of bounds')
+  if (end < 0 || end > this.length) throw new RangeError('end out of bounds')
 
   var i
   if (typeof value === 'number') {
@@ -18083,11 +18655,15 @@ Buffer._augment = function (arr) {
   arr.compare = BP.compare
   arr.copy = BP.copy
   arr.slice = BP.slice
+  arr.readUIntLE = BP.readUIntLE
+  arr.readUIntBE = BP.readUIntBE
   arr.readUInt8 = BP.readUInt8
   arr.readUInt16LE = BP.readUInt16LE
   arr.readUInt16BE = BP.readUInt16BE
   arr.readUInt32LE = BP.readUInt32LE
   arr.readUInt32BE = BP.readUInt32BE
+  arr.readIntLE = BP.readIntLE
+  arr.readIntBE = BP.readIntBE
   arr.readInt8 = BP.readInt8
   arr.readInt16LE = BP.readInt16LE
   arr.readInt16BE = BP.readInt16BE
@@ -18098,10 +18674,14 @@ Buffer._augment = function (arr) {
   arr.readDoubleLE = BP.readDoubleLE
   arr.readDoubleBE = BP.readDoubleBE
   arr.writeUInt8 = BP.writeUInt8
+  arr.writeUIntLE = BP.writeUIntLE
+  arr.writeUIntBE = BP.writeUIntBE
   arr.writeUInt16LE = BP.writeUInt16LE
   arr.writeUInt16BE = BP.writeUInt16BE
   arr.writeUInt32LE = BP.writeUInt32LE
   arr.writeUInt32BE = BP.writeUInt32BE
+  arr.writeIntLE = BP.writeIntLE
+  arr.writeIntBE = BP.writeIntBE
   arr.writeInt8 = BP.writeInt8
   arr.writeInt16LE = BP.writeInt16LE
   arr.writeInt16BE = BP.writeInt16BE
@@ -18118,11 +18698,13 @@ Buffer._augment = function (arr) {
   return arr
 }
 
-var INVALID_BASE64_RE = /[^+\/0-9A-z]/g
+var INVALID_BASE64_RE = /[^+\/0-9A-z\-]/g
 
 function base64clean (str) {
   // Node strips out invalid characters like \n and \t from the string, base64-js does not
   str = stringtrim(str).replace(INVALID_BASE64_RE, '')
+  // Node converts strings with length < 2 to ''
+  if (str.length < 2) return ''
   // Node allows for non-padded base64 strings (missing trailing ===), base64-js does not
   while (str.length % 4 !== 0) {
     str = str + '='
@@ -18146,22 +18728,100 @@ function toHex (n) {
   return n.toString(16)
 }
 
-function utf8ToBytes (str) {
-  var byteArray = []
-  for (var i = 0; i < str.length; i++) {
-    var b = str.charCodeAt(i)
-    if (b <= 0x7F) {
-      byteArray.push(b)
-    } else {
-      var start = i
-      if (b >= 0xD800 && b <= 0xDFFF) i++
-      var h = encodeURIComponent(str.slice(start, i+1)).substr(1).split('%')
-      for (var j = 0; j < h.length; j++) {
-        byteArray.push(parseInt(h[j], 16))
+function utf8ToBytes(string, units) {
+  var codePoint, length = string.length
+  var leadSurrogate = null
+  units = units || Infinity
+  var bytes = []
+  var i = 0
+
+  for (; i<length; i++) {
+    codePoint = string.charCodeAt(i)
+
+    // is surrogate component
+    if (codePoint > 0xD7FF && codePoint < 0xE000) {
+
+      // last char was a lead
+      if (leadSurrogate) {
+
+        // 2 leads in a row
+        if (codePoint < 0xDC00) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          leadSurrogate = codePoint
+          continue
+        }
+
+        // valid surrogate pair
+        else {
+          codePoint = leadSurrogate - 0xD800 << 10 | codePoint - 0xDC00 | 0x10000
+          leadSurrogate = null
+        }
+      }
+
+      // no lead yet
+      else {
+
+        // unexpected trail
+        if (codePoint > 0xDBFF) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        }
+
+        // unpaired lead
+        else if (i + 1 === length) {
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        }
+
+        // valid lead
+        else {
+          leadSurrogate = codePoint
+          continue
+        }
       }
     }
+
+    // valid bmp char, but last char was a lead
+    else if (leadSurrogate) {
+      if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+      leadSurrogate = null
+    }
+
+    // encode utf8
+    if (codePoint < 0x80) {
+      if ((units -= 1) < 0) break
+      bytes.push(codePoint)
+    }
+    else if (codePoint < 0x800) {
+      if ((units -= 2) < 0) break
+      bytes.push(
+        codePoint >> 0x6 | 0xC0,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else if (codePoint < 0x10000) {
+      if ((units -= 3) < 0) break
+      bytes.push(
+        codePoint >> 0xC | 0xE0,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else if (codePoint < 0x200000) {
+      if ((units -= 4) < 0) break
+      bytes.push(
+        codePoint >> 0x12 | 0xF0,
+        codePoint >> 0xC & 0x3F | 0x80,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      );
+    }
+    else {
+      throw new Error('Invalid code point')
+    }
   }
-  return byteArray
+
+  return bytes
 }
 
 function asciiToBytes (str) {
@@ -18173,10 +18833,13 @@ function asciiToBytes (str) {
   return byteArray
 }
 
-function utf16leToBytes (str) {
+function utf16leToBytes (str, units) {
   var c, hi, lo
   var byteArray = []
   for (var i = 0; i < str.length; i++) {
+
+    if ((units -= 2) < 0) break
+
     c = str.charCodeAt(i)
     hi = c >> 8
     lo = c % 256
@@ -18188,10 +18851,11 @@ function utf16leToBytes (str) {
 }
 
 function base64ToBytes (str) {
-  return base64.toByteArray(str)
+  return base64.toByteArray(base64clean(str))
 }
 
-function blitBuffer (src, dst, offset, length) {
+function blitBuffer (src, dst, offset, length, unitSize) {
+  if (unitSize) length -= length % unitSize;
   for (var i = 0; i < length; i++) {
     if ((i + offset >= dst.length) || (i >= src.length))
       break
@@ -18223,12 +18887,16 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	var NUMBER = '0'.charCodeAt(0)
 	var LOWER  = 'a'.charCodeAt(0)
 	var UPPER  = 'A'.charCodeAt(0)
+	var PLUS_URL_SAFE = '-'.charCodeAt(0)
+	var SLASH_URL_SAFE = '_'.charCodeAt(0)
 
 	function decode (elt) {
 		var code = elt.charCodeAt(0)
-		if (code === PLUS)
+		if (code === PLUS ||
+		    code === PLUS_URL_SAFE)
 			return 62 // '+'
-		if (code === SLASH)
+		if (code === SLASH ||
+		    code === SLASH_URL_SAFE)
 			return 63 // '/'
 		if (code < NUMBER)
 			return -1 //no match

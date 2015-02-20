@@ -27,20 +27,16 @@ var Alert = React.createClass({
 
 var Playground = require('../../../Playground.jsx');
 
-var form = {
-  auto: 'labels',
-  value: {
-    type: 'info',
-    children: <b>You can use JSX in the form</b>
-  }
+var formOptions = {
+  legend: 'My legend'
 };
 
 var playground = React.render(
   <Playground
     component={Alert}
     props={AlertProps}
-    form={form} />,
+    form={formOptions} />,
   document.getElementById('app')
 );
 
-playground.show();
+playground.getValue();

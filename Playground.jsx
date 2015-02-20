@@ -5,6 +5,8 @@ var transform = require('react-tools').transform;
 var t = require('tcomb-form');
 var toPropTypes = require('.').react.toPropTypes;
 
+var Form = t.form.Form;
+
 function defaultTemplate(locals) {
   return (
     <div className="row">
@@ -37,26 +39,21 @@ var Playground = React.createClass({
   // dogfooding
   propTypes: toPropTypes(PlaygroundProps, {debug: true}),
 
-  getInitialState: function () {
-    var Form = t.form.create(this.props.props, this.props.form);
-    return {
-      Form: Form
-    };
-  },
-
-  show: function (rawValue) {
-    var value = this.refs.form.getValue();
+  onChange: function (value) {
     if (value) {
       React.render(<this.props.component {...value} />, this.refs.preview.getDOMNode());
     }
+  },
+
+  getValue: function (raw) {
+    return this.refs.form.getValue(raw);
   },
 
   render: function () {
 
     var locals = {
       displayName: this.props.component.displayName,
-      Form: <this.state.Form ref="form" onChange={this.show} />,
-      onChange: this.show,
+      Form: <Form ref="form" type={this.props.props} options={this.props.form} onChange={this.onChange} />,
       previewRef: 'preview'
     };
 
