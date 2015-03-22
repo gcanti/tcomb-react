@@ -1,6 +1,6 @@
 {
   "name": "tcomb-react",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
@@ -16,10 +16,10 @@
     "url": "https://github.com/gcanti/tcomb-react/issues"
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
-  "dependencies": {
-    "tcomb-validation": "^1.0.0",
-    "react-tools": "^0.12.2",
-    "tcomb-form": "^0.4.2"
+  "peerDependencies": {
+    "tcomb-validation": "^1.0.1",
+    "react-tools": ">=0.12.0",
+    "tcomb-form": "^0.4.5"
   },
   "devDependencies": {
     "reactify": "^0.17.1",

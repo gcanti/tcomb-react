@@ -1,3 +1,12 @@
+v0.2.2
+
+- move tcomb-validation and tcomb-form to peerDependencies, fix #5
+- update to tcomb-form v0.4.5
+
+v0.2.1
+
+- update to tcomb-form v0.4.2
+
 v0.2.0
 
 - complete refactoring
