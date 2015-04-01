@@ -48,7 +48,7 @@ function toPropTypes(type, opts) {
     if (isSubtype) {
       ret.__all__ = function (values, prop, displayName) {
         if (!type.meta.predicate(values)) {
-          var message = format('Invalid props `%j` supplied to `%s`, should be `%s`', values, displayName, t.util.getName(type));
+          var message = format('Invalid props `%j` supplied to `%s`, should be `%s`', values, displayName, t.getTypeName(type));
           if (opts.debug === true) {
             t.fail(message);
           }

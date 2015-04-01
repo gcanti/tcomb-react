@@ -1,3 +1,7 @@
+v0.2.3
+
+- fix a bug when propTypes is a subtype
+
 v0.2.2
 
 - move tcomb-validation and tcomb-form to peerDependencies, fix #5
