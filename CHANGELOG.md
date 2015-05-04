@@ -1,34 +1,38 @@
-v0.2.3
+# Changelog
 
-- fix a bug when propTypes is a subtype
+> **Tags:**
+> - [New Feature]
+> - [Bug Fix]
+> - [Breaking Change]
+> - [Documentation]
+> - [Internal]
+> - [Polish]
 
-v0.2.2
+**Note**: Gaps between patch versions are faulty/broken releases.
 
-- move tcomb-validation and tcomb-form to peerDependencies, fix #5
-- update to tcomb-form v0.4.5
+## v0.2.4
 
-v0.2.1
+- **New Feature**
+    + make propTypes introspectable by adding a tcomb property #6
 
-- update to tcomb-form v0.4.2
+## v0.2.3
 
-v0.2.0
+- **Bug Fix**
+    + fix a bug when propTypes is a subtype
 
-- complete refactoring
+## v0.2.2
 
-v0.1.2
+- **Polish**
+    + move tcomb-validation and tcomb-form to peerDependencies, fix #5
+    + update to tcomb-form v0.4.5
 
-- upgraded to tcomb-validation v0.1.3
-- upgraded to react v0.11.2
+## v0.2.1
 
-v0.1.1
+- **Polish**
+    + update to tcomb-form v0.4.2
 
-- fix #3
+## v0.2.0
 
-v0.1.0
+- **Internal**
+    + complete refactoring
 
-- added React types
-
-v0.0.3
-
-- assertEqual doesn't support subtypes, fix #1
-- add bind(component, type, opts), fix #2

@@ -4,7 +4,7 @@
 - optionally when a validation fails, **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong
 - by default props are required, a **saner default** since it's quite easy to forget `.isRequired`
 - splitting props types and components allows component reflection and code reuse
-- easily integrable with [tcomb-form](https://gcanti.github.io/tcomb-form) to **build awesome demos** of your components
+- integrable with [tcomb-form](https://gcanti.github.io/tcomb-form) to build demos of your components
 
 # Example
 
