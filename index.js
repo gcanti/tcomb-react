@@ -40,6 +40,10 @@ function toPropTypes(type, opts) {
       // add a readable entry in the call stack
       checkPropType.displayName = format('Invalid prop `%s`, should be `%s`', k, name);
 
+      // attach the original tcomb definition, so other components can read it
+      // via `propTypes.whatever.tcomb`
+      checkPropType.tcomb = props[k];
+
       ret[k] = checkPropType;
 
     });
