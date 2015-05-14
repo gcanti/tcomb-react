@@ -10,6 +10,14 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.3.0
+
+- **Internal**
+    + Upgrade to latest tcomb-validation
+    + Remove tcomb-form and react-tools dependencies #7
+- **Polish**
+    + Remove Playground [BREAKING]
+
 ## v0.2.4
 
 - **New Feature**

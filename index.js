@@ -13,7 +13,6 @@ function toPropTypes(type, opts) {
 
   var ret = {};
 
-  // envify is great
   if (process.env.NODE_ENV !== 'production') {
 
     opts = opts || {};

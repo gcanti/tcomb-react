@@ -3,14 +3,20 @@
 - **additional fine grained type checks**, nestable at arbitrary level
 - optionally when a validation fails, **the debugger kicks in** so you can inspect the stack and quickly find out what's wrong
 - by default props are required, a **saner default** since it's quite easy to forget `.isRequired`
-- splitting props types and components allows component reflection and code reuse
-- integrable with [tcomb-form](https://gcanti.github.io/tcomb-form) to build demos of your components
+- splitting props types and components allows runtime type introspection and code reuse
+
+# API
+
+`toPropTypes(type, [options])`
+
+- `type`: a tcomb type 
+- `options`: see Debugging section
 
 # Example
 
-```js
-// Alert.jsx file
+## createClass (ES5)
 
+```js
 var t = require('tcomb-react');
 
 var AlertType = t.enums.of('info success danger warning');
@@ -36,26 +42,42 @@ var Alert = React.createClass({
 });
 ```
 
-# Build a component playground
-
-See the demo live [here](https://gcanti.github.io/tcomb-react/demo/alert/index.html).
+## React.Component (ES6)
 
 ```js
-var Playground = require('tcomb-react/Playground.jsx');
+const t = require('tcomb-react');
 
-// tcomb-form options
-var formOptions = {
-  legend: 'My legend'
-};
+const AlertType = t.enums.of('info success danger warning');
 
-React.render(
-  <Playground
-    component={Alert}
-    props={AlertProps}
-    form={formOptions} />,
-  document.getElementById('app')
-);
+const AlertProps = t.struct({
+  type: AlertType,
+  children: t.react.ReactNode
+});
+
+class Alert extends React.Component {
+
+  render() {
+    return (
+      <div
+      className={'alert alert-' + this.props.type}>
+      {this.props.children}
+      </div>
+    );
+  }
+
+}
+
+Alert.propTypes = t.react.toPropTypes(AlertProps);
 ```
+
+# Debugging
+
+If you want to throw an exception instead of a message in the console, pass a `debug: true` option:
+
+```js
+Alert.propTypes = t.react.toPropTypes(AlertProps, {debug: true});
+```
+
 
 # Comparison table
 
