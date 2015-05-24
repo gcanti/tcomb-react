@@ -1,21 +1,13 @@
 'use strict';
 
-var React = require('react');
 var t = require('tcomb-validation');
 var format = t.format;
+var noop = function () {};
 
-var ReactElement = t.irreducible('ReactElement', React.isValidElement);
-var ReactNode = t.irreducible('ReactNode', function (x) {
-  return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
-});
-
-function toPropTypes(type, opts) {
-
-  var ret = {};
-
+function propTypes(type) {
   if (process.env.NODE_ENV !== 'production') {
 
-    opts = opts || {};
+    var ret = {};
     var isSubtype = (type.meta.kind === 'subtype');
     var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
 
@@ -29,15 +21,11 @@ function toPropTypes(type, opts) {
         var value = values[prop];
         if (!t.validate(value, props[prop]).isValid()) {
           var message = format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', prop, value, displayName, name);
-          if (opts.debug === true) {
-            t.fail(message);
-          }
-          return new Error(message);
+          // add a readable entry in the call stack
+          checkPropType.displayName = message;
+          t.fail(message);
         }
       }
-
-      // add a readable entry in the call stack
-      checkPropType.displayName = format('Invalid prop `%s`, should be `%s`', k, name);
 
       // attach the original tcomb definition, so other components can read it
       // via `propTypes.whatever.tcomb`
@@ -52,23 +40,30 @@ function toPropTypes(type, opts) {
       ret.__all__ = function (values, prop, displayName) {
         if (!type.meta.predicate(values)) {
           var message = format('Invalid props `%j` supplied to `%s`, should be `%s`', values, displayName, t.getTypeName(type));
-          if (opts.debug === true) {
-            t.fail(message);
-          }
-          return new Error(message);
+          t.fail(message);
         }
       };
     }
 
-  }
+    return ret;
 
-  return ret;
+  }
 }
 
-t.react = {
-  toPropTypes: toPropTypes,
-  ReactElement: ReactElement,
-  ReactNode: ReactNode
-};
+// ES7 decorator
+// in production will be a noop
+function props(Type) {
+  if (process.env.NODE_ENV !== 'production') {
+    Type = t.Type.is(Type) ? Type : t.struct(Type);
+    return function (Component) {
+      Component.propTypes = propTypes(Type);
+    };
+  } else {
+    return noop;
+  }
+}
 
-module.exports = t;
+module.exports = {
+  propTypes: propTypes,
+  props: props
+};

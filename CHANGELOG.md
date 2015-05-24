@@ -10,6 +10,15 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.4.0
+
+- **New Feature**
+    + Add @props ES7 decorator
+- **Breaking Change**
+    + Remove `react` and `t` namespace
+    + Remove `ReactElement` and `ReactNode` type
+    + Remove `React` dependency
+
 ## v0.3.0
 
 - **Internal**
