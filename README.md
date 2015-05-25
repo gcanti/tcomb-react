@@ -10,17 +10,23 @@
 import t from 'tcomb';
 import { props } from 'tcomb-react';
 
-const AlertType = t.enums.of('info success danger warning');
+const Gender = t.enums.of('Male Female');
+const URL = t.subtype(t.Str, s => s.startsWith('http'));
 
 @props({
-  type: AlertType
+  name: t.Str,
+  surname: t.maybe(t.Str),
+  age: t.Num,
+  gender: Gender,
+  avatar: URL
 })
-class Alert {
+class Card extends React.Component {
 
   render() {
     return (
-      <div className={'alert alert-' + this.props.type}>
-        {this.props.children}
+      <div>
+        <p>{this.props.name}</p>
+        ...
       </div>
     );
   }
@@ -34,18 +40,24 @@ class Alert {
 var t = require('tcomb');
 var propTypes = require('tcomb-react').propTypes;
 
-var AlertType = t.enums.of('info success danger warning');
+var Gender = t.enums.of('Male Female');
+var URL = t.subtype(t.Str, function (s) { return s.startsWith('http'); });
 
-var Alert = React.createClass({
+var Card = React.createClass({
 
   propTypes: propTypes({
-    type: AlertType
+    name: t.Str,
+    surname: t.maybe(t.Str),
+    age: t.Num,
+    gender: Gender,
+    avatar: URL
   }),
 
   render: function () {
     return (
-      <div className={'alert alert-' + this.props.type}>
-        {this.props.children}
+      <div>
+        <p>{this.props.name}</p>
+        ...
       </div>
     );
   }
