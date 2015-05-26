@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.5.0
+
+- **New Feature**
+    + If you try to pass additional props it will fail
+
 ## v0.4.0
 
 - **New Feature**

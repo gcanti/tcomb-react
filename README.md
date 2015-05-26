@@ -1,8 +1,9 @@
 # Features
 
-- **additional fine grained type checks**, nestable at arbitrary level
-- by default props are required, a **saner default** since it's quite easy to forget `.isRequired`
-- splitting props types and components allows runtime type introspection and code reuse
+- builds on [tcomb](https://github.com/gcanti/tcomb) library
+- additional fine grained type checks, nestable at arbitrary level
+- by default props are required, a saner default since it's quite easy to forget `.isRequired`
+- checks invalid additional props
 
 # ES7 decorator
 
@@ -33,6 +34,17 @@ class Card extends React.Component {
 
 }
 ```
+
+**Note**. `@props` can accepts a subtype of a struct.
+
+```js
+@props(t.subtype(t.struct({
+  name: t.Str,
+  ...  
+}), () => { ... }))
+```
+
+**Note**. If you try to pass additional props it will fail.
 
 # ES5
 

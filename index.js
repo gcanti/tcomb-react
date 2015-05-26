@@ -35,9 +35,17 @@ function propTypes(type) {
 
     });
 
-    // kinda hacky
+    ret.__strict__ = function (values, prop, displayName) {
+      for (var k in values) {
+        if (values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
+          var message = t.format('Invalid additional prop `%s` supplied to `%s`', k, displayName);
+          t.fail(message);
+        }
+      }
+    };
+
     if (isSubtype) {
-      ret.__all__ = function (values, prop, displayName) {
+      ret.__subtype__ = function (values, prop, displayName) {
         if (!type.meta.predicate(values)) {
           var message = format('Invalid props `%j` supplied to `%s`, should be `%s`', values, displayName, t.getTypeName(type));
           t.fail(message);
