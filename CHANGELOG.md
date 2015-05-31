@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## 0.6.0
+
+- **Breaking Change**
+    + upgrade to tcomb-validation v2.0
+
 ## v0.5.0
 
 - **New Feature**
