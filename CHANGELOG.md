@@ -10,7 +10,7 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
-## 0.7.0
+## v0.8.0
 
 - **Breaking Change**
     + upgrade to tcomb-validation v2.0

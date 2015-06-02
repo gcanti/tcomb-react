@@ -1,8 +1,15 @@
 'use strict';
 
 var t = require('tcomb-validation');
-var format = t.format;
 var noop = function () {};
+
+function stringify(x) {
+  try { // handle "Converting circular structure to JSON" error
+    return JSON.stringify(x);
+  } catch (e) {
+    return String(x);
+  }
+}
 
 function propTypes(type) {
   if (process.env.NODE_ENV !== 'production') {
@@ -20,7 +27,7 @@ function propTypes(type) {
       function checkPropType(values, prop, displayName) {
         var value = values[prop];
         if (!t.validate(value, props[prop]).isValid()) {
-          var message = format('Invalid prop `%s` = `%s` supplied to `%s`, should be `%s`', prop, value, displayName, name);
+          var message = 'Invalid prop ' + prop + ' = ' + value + ' supplied to ' + displayName + ', should be a ' + name + '.';
           // add a readable entry in the call stack
           checkPropType.displayName = message;
           t.fail(message);
@@ -38,8 +45,7 @@ function propTypes(type) {
     ret.__strict__ = function (values, prop, displayName) {
       for (var k in values) {
         if (values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
-          var message = t.format('Invalid additional prop `%s` supplied to `%s`', k, displayName);
-          t.fail(message);
+          t.fail('Invalid additional prop ' + k + ' supplied to ' + displayName + '.');
         }
       }
     };
@@ -47,8 +53,7 @@ function propTypes(type) {
     if (isSubtype) {
       ret.__subtype__ = function (values, prop, displayName) {
         if (!type.meta.predicate(values)) {
-          var message = format('Invalid props `%j` supplied to `%s`, should be `%s`', values, displayName, t.getTypeName(type));
-          t.fail(message);
+          t.fail('Invalid props ' + stringify(values) + ' supplied to ' + displayName + ', should be a ' + t.getTypeName(type) + '.');
         }
       };
     }
@@ -62,7 +67,9 @@ function propTypes(type) {
 // in production will be a noop
 function props(Type) {
   if (process.env.NODE_ENV !== 'production') {
-    Type = t.isType(Type) ? Type : t.struct(Type);
+    if (!t.isType(Type)) {
+      Type = t.struct(Type);
+    }
     return function (Component) {
       Component.propTypes = propTypes(Type);
     };
