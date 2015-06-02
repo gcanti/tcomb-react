@@ -62,7 +62,7 @@ function propTypes(type) {
 // in production will be a noop
 function props(Type) {
   if (process.env.NODE_ENV !== 'production') {
-    Type = t.Type.is(Type) ? Type : t.struct(Type);
+    Type = t.isType(Type) ? Type : t.struct(Type);
     return function (Component) {
       Component.propTypes = propTypes(Type);
     };

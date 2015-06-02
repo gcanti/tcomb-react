@@ -1,6 +1,6 @@
 {
   "name": "tcomb-react",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
