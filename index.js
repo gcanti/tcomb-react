@@ -43,10 +43,16 @@ function propTypes(type) {
     });
 
     ret.__strict__ = function (values, prop, displayName) {
+      var extra = [];
+
       for (var k in values) {
         if (values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
-          t.fail('Invalid additional prop ' + k + ' supplied to ' + displayName + '.');
+          extra.push(k);
         }
+      }
+
+      if (extra.length > 0) {
+        t.fail('Invalid additional prop(s) ' + extra.join(', ') + ' supplied to ' + displayName + '.');
       }
     };
 
