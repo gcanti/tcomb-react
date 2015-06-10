@@ -12,19 +12,19 @@ function stringify(x) {
 }
 
 function propTypes(type) {
-  if (process.env.NODE_ENV !== 'production') {
+  var ret = {};
+  var isSubtype = (type.meta.kind === 'subtype');
+  var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
 
-    var ret = {};
-    var isSubtype = (type.meta.kind === 'subtype');
-    var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
+  Object.keys(props).forEach(function (k) {
+    var name = t.getTypeName(props[k]);
 
-    Object.keys(props).forEach(function (k) {
+    var checkPropType = function() {};
 
-      var name = t.getTypeName(props[k]);
-
+    if (process.env.NODE_ENV !== 'production') {
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
-      function checkPropType(values, prop, displayName) {
+      checkPropType = function checkPropType(values, prop, displayName) {
         var value = values[prop];
         if (!t.validate(value, props[prop]).isValid()) {
           var message = 'Invalid prop ' + prop + ' = ' + value + ' supplied to ' + displayName + ', should be a ' + name + '.';
@@ -32,16 +32,17 @@ function propTypes(type) {
           checkPropType.displayName = message;
           t.fail(message);
         }
-      }
+      };
+    }
 
-      // attach the original tcomb definition, so other components can read it
-      // via `propTypes.whatever.tcomb`
-      checkPropType.tcomb = props[k];
+    // attach the original tcomb definition, so other components can read it
+    // via `propTypes.whatever.tcomb`
+    checkPropType.tcomb = props[k];
 
-      ret[k] = checkPropType;
+    ret[k] = checkPropType;
+  });
 
-    });
-
+  if (process.env.NODE_ENV !== 'production') {
     ret.__strict__ = function (values, prop, displayName) {
       for (var k in values) {
         if (values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
@@ -57,10 +58,9 @@ function propTypes(type) {
         }
       };
     }
-
-    return ret;
-
   }
+
+  return ret;
 }
 
 // ES7 decorator
