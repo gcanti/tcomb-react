@@ -31,15 +31,15 @@ function propTypes(type) {
 
         if (!r.isValid()) {
           var parts = [
-            'Invalid prop ' + prop + ' supplied to ' + displayName + ', should be a ' + name + '.',
-            '',
+            'Invalid prop ' + stringify(prop) + ' supplied to ' + displayName + ', should be a ' + name + '.\n',
+            'Detected errors (' + r.errors.length + '):\n'
           ];
 
           r.errors.forEach(function(e, i) {
-            parts.push((i+1) + '. ' + e.message);
+            parts.push(' ' + (i + 1) + '. ' + e.message);
           });
 
-          var message = parts.join('\n');
+          var message = parts.join('\n') + '\n\n';
 
           // add a readable entry in the call stack
           checkPropType.displayName = message;
@@ -66,7 +66,7 @@ function propTypes(type) {
       }
 
       if (extra.length > 0) {
-        t.fail('Invalid additional prop(s) ' + extra.join(', ') + ' supplied to ' + displayName + '.');
+        t.fail('Invalid additional prop(s) ' + stringify(extra) + ' supplied to ' + displayName + '.');
       }
     };
 
@@ -85,16 +85,12 @@ function propTypes(type) {
 // ES7 decorator
 // in production will be a noop
 function props(Type) {
-  if (process.env.NODE_ENV !== 'production') {
-    if (!t.isType(Type)) {
-      Type = t.struct(Type);
-    }
-    return function (Component) {
-      Component.propTypes = propTypes(Type);
-    };
-  } else {
-    return noop;
+  if (!t.isType(Type)) {
+    Type = t.struct(Type);
   }
+  return function (Component) {
+    Component.propTypes = propTypes(Type);
+  };
 }
 
 module.exports = {

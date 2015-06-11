@@ -10,6 +10,13 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.1
+
+- **New Feature** (thanks @deoxxa)
+    + show all the errors from tcomb-validation in warnings
+    + report all additional properties, not just the first
+    + retain (limited) proptypes in production
+
 ## v0.8.0
 
 - **Breaking Change**
