@@ -1,7 +1,6 @@
 'use strict';
 
 var t = require('tcomb-validation');
-var noop = function () {};
 
 function stringify(x) {
   try { // handle "Converting circular structure to JSON" error
@@ -12,6 +11,12 @@ function stringify(x) {
 }
 
 function propTypes(type) {
+
+  // can also accept an object
+  if (!t.isType(type)) {
+    type = t.struct(type);
+  }
+
   var ret = {};
   var isSubtype = (type.meta.kind === 'subtype');
   var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
@@ -22,6 +27,7 @@ function propTypes(type) {
     var checkPropType = function() {};
 
     if (process.env.NODE_ENV !== 'production') {
+
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
       checkPropType = function checkPropType(values, prop, displayName) {
@@ -83,13 +89,9 @@ function propTypes(type) {
 }
 
 // ES7 decorator
-// in production will be a noop
-function props(Type) {
-  if (!t.isType(Type)) {
-    Type = t.struct(Type);
-  }
+function props(type) {
   return function (Component) {
-    Component.propTypes = propTypes(Type);
+    Component.propTypes = propTypes(type);
   };
 }
 

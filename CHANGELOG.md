@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.2
+
+- **New Feature**
+    + `propTypes` can also accept an object fix #12 (thanks @tehnomaag)
+
 ## v0.8.1
 
 - **New Feature** (thanks @deoxxa)
