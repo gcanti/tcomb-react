@@ -3,7 +3,7 @@
 - builds on [tcomb](https://github.com/gcanti/tcomb) library
 - additional fine grained type checks, nestable at arbitrary level
 - by default props are required, a saner default since it's quite easy to forget `.isRequired`
-- checks invalid additional props
+- checks for unwanted additional props
 
 # ES7 decorator
 
@@ -44,7 +44,7 @@ class Card extends React.Component {
 }), () => { ... }))
 ```
 
-**Note**. If you try to pass additional props it will fail.
+**Note**. If you try to pass additional props will throw.
 
 # ES5
 
@@ -88,9 +88,6 @@ var Card = React.createClass({
 | objects | object | Obj |
 | strings | string | Str |
 | all | any | Any |
-| regular expressions | ✘ | Re |
-| dates | ✘ | Dat |
-| errors | ✘ | Err |
 | required prop | T.isRequired | T |
 | optional prop | T | maybe(T) |
 | custom types | ✘ | ✓ |
@@ -101,5 +98,3 @@ var Card = React.createClass({
 | enums | oneOf(['a', 'b']) | enums.of('a b') |
 | unions | oneOfType([T, U]) | union([T, U]) |
 | duck typing | shape | struct |
-| elements | element | ReactElement |
-| nodes | node | ReactNode |
