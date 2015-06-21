@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.3
+
+- **New Feature**
+    + re-export tcomb
+
 ## v0.8.2
 
 - **New Feature**

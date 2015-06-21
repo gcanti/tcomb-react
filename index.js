@@ -96,6 +96,7 @@ function props(type) {
 }
 
 module.exports = {
+  t: t,
   propTypes: propTypes,
   props: props
 };

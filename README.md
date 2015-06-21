@@ -8,8 +8,7 @@
 # ES7 decorator
 
 ```js
-import t from 'tcomb';
-import { props } from 'tcomb-react';
+import { props, t } from 'tcomb-react';
 
 const Gender = t.enums.of('Male Female');
 const URL = t.subtype(t.Str, s => s.startsWith('http'));
@@ -49,7 +48,7 @@ class Card extends React.Component {
 # ES5
 
 ```js
-var t = require('tcomb');
+var t = require('tcomb-react').t;
 var propTypes = require('tcomb-react').propTypes;
 
 var Gender = t.enums.of('Male Female');
