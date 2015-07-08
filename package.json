@@ -1,6 +1,6 @@
 {
   "name": "tcomb-react",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,7 @@
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
   "dependencies": {
-    "tcomb-validation": "^2.0.0-beta"
+    "tcomb-validation": "^2.0.0"
   },
   "devDependencies": {
   },

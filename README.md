@@ -10,7 +10,7 @@
 ```js
 import { props, t } from 'tcomb-react';
 
-const Gender = t.enums.of('Male Female');
+const Gender = t.enums.of(['Male', 'Female']);
 const URL = t.subtype(t.Str, s => s.startsWith('http'));
 
 @props({
@@ -51,7 +51,7 @@ class Card extends React.Component {
 var t = require('tcomb-react').t;
 var propTypes = require('tcomb-react').propTypes;
 
-var Gender = t.enums.of('Male Female');
+var Gender = t.enums.of(['Male', 'Female']);
 var URL = t.subtype(t.Str, function (s) { return s.startsWith('http'); });
 
 var Card = React.createClass({

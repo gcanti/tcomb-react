@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.4
+
+- **Internal**
+    + upgrade to latest version of tcomb-validation (2.0.0)
+
 ## v0.8.3
 
 - **New Feature**
