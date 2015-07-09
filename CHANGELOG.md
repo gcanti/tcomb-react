@@ -10,6 +10,13 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.5
+
+- **New Feature**
+    + added pre-defined types (#14):
+        * `ReactElement`
+        * `ReactNode`
+
 ## v0.8.4
 
 - **Internal**

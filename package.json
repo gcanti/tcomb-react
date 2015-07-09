@@ -1,9 +1,11 @@
 {
   "name": "tcomb-react",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
+    "lint": "eslint index.js",
+    "test": "npm run lint && mocha"
   },
   "repository": {
     "type": "git",
@@ -15,10 +17,16 @@
     "url": "https://github.com/gcanti/tcomb-react/issues"
   },
   "homepage": "https://github.com/gcanti/tcomb-react",
+  "peerDependencies": {
+    "react": "^0.13.0"
+  },
   "dependencies": {
-    "tcomb-validation": "^2.0.0"
+    "tcomb-validation": "^2.0.0",
+    "react": "^0.13.0"
   },
   "devDependencies": {
+    "eslint": "^0.22.1",
+    "mocha": "^2.2.5"
   },
   "tags": [
     "tcomb",

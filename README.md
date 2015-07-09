@@ -2,8 +2,8 @@
 
 - builds on [tcomb](https://github.com/gcanti/tcomb) library
 - additional fine grained type checks, nestable at arbitrary level
-- by default props are required, a saner default since it's quite easy to forget `.isRequired`
-- checks for unwanted additional props
+- **by default props are required**, a saner default since it's quite easy to forget `.isRequired`
+- **checks for unwanted additional props**
 
 # ES7 decorator
 
@@ -43,8 +43,6 @@ class Card extends React.Component {
 }), () => { ... }))
 ```
 
-**Note**. If you try to pass additional props will throw.
-
 # ES5
 
 ```js
@@ -74,6 +72,30 @@ var Card = React.createClass({
   }
 
 });
+```
+
+# Exported pre-defined types
+
+- `ReactElement`
+- `ReactNode`
+
+```js
+import { props, t, ReactElement } from 'tcomb-react';
+
+@props({
+  children: ReactElement // allow only one child
+})
+class MyComponent extends React.Component {
+
+  render() {
+    return (
+      <div>
+        {this.props.children}
+      </div>
+    );
+  }
+
+}
 ```
 
 # Comparison table

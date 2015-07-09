@@ -1,5 +1,6 @@
 'use strict';
 
+var React = require('react');
 var t = require('tcomb-validation');
 
 function stringify(x) {
@@ -10,27 +11,27 @@ function stringify(x) {
   }
 }
 
-function propTypes(type) {
+function getPropTypes(type) {
 
   // can also accept an object
   if (!t.isType(type)) {
     type = t.struct(type);
   }
 
-  var ret = {};
+  var propTypes = {};
   var isSubtype = (type.meta.kind === 'subtype');
   var props = isSubtype ? type.meta.type.meta.props : type.meta.props;
 
   Object.keys(props).forEach(function (k) {
     var name = t.getTypeName(props[k]);
 
-    var checkPropType = function() {};
+    var checkPropType = function () {};
 
     if (process.env.NODE_ENV !== 'production') {
 
       // React custom prop validators
       // see http://facebook.github.io/react/docs/reusable-components.html
-      checkPropType = function checkPropType(values, prop, displayName) {
+      checkPropType = function (values, prop, displayName) {
         var value = values[prop];
 
         var r = t.validate(value, props[prop]);
@@ -58,11 +59,11 @@ function propTypes(type) {
     // via `propTypes.whatever.tcomb`
     checkPropType.tcomb = props[k];
 
-    ret[k] = checkPropType;
+    propTypes[k] = checkPropType;
   });
 
   if (process.env.NODE_ENV !== 'production') {
-    ret.__strict__ = function (values, prop, displayName) {
+    propTypes.__strict__ = function (values, prop, displayName) {
       var extra = [];
 
       for (var k in values) {
@@ -77,7 +78,7 @@ function propTypes(type) {
     };
 
     if (isSubtype) {
-      ret.__subtype__ = function (values, prop, displayName) {
+      propTypes.__subtype__ = function (values, prop, displayName) {
         if (!type.meta.predicate(values)) {
           t.fail('Invalid props ' + stringify(values) + ' supplied to ' + displayName + ', should be a ' + t.getTypeName(type) + '.');
         }
@@ -85,18 +86,24 @@ function propTypes(type) {
     }
   }
 
-  return ret;
+  return propTypes;
 }
 
-// ES7 decorator
-function props(type) {
+function es7PropsDecorator(type) {
   return function (Component) {
-    Component.propTypes = propTypes(type);
+    Component.propTypes = getPropTypes(type);
   };
 }
 
+var ReactElement = t.irreducible('ReactElement', React.isValidElement);
+var ReactNode = t.irreducible('ReactNode', function (x) {
+  return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
+});
+
 module.exports = {
   t: t,
-  propTypes: propTypes,
-  props: props
+  propTypes: getPropTypes,
+  props: es7PropsDecorator,
+  ReactElement: ReactElement,
+  ReactNode: ReactNode
 };
