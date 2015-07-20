@@ -39,7 +39,7 @@ class Card extends React.Component {
 ```js
 @props(t.subtype(t.struct({
   name: t.Str,
-  ...  
+  ...
 }), () => { ... }))
 ```
 
@@ -74,16 +74,16 @@ var Card = React.createClass({
 });
 ```
 
-# Exported pre-defined types
+# Augmented pre-defined types
 
-- `ReactElement`
-- `ReactNode`
+- `t.ReactElement`
+- `t.ReactNode`
 
 ```js
-import { props, t, ReactElement } from 'tcomb-react';
+import { props, t } from 'tcomb-react';
 
 @props({
-  children: ReactElement // allow only one child
+  children: t.ReactElement // allow only one child
 })
 class MyComponent extends React.Component {
 
@@ -119,3 +119,5 @@ class MyComponent extends React.Component {
 | enums | oneOf(['a', 'b']) | enums.of('a b') |
 | unions | oneOfType([T, U]) | union([T, U]) |
 | duck typing | shape | struct |
+| react element | element | ReactElement |
+| react node | node | ReactNode |

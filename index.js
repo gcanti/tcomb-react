@@ -100,10 +100,13 @@ var ReactNode = t.irreducible('ReactNode', function (x) {
   return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
 });
 
+t.ReactElement = ReactElement;
+t.ReactNode = ReactNode;
+
 module.exports = {
   t: t,
   propTypes: getPropTypes,
   props: es7PropsDecorator,
-  ReactElement: ReactElement,
-  ReactNode: ReactNode
+  ReactElement: ReactElement, // deprecated
+  ReactNode: ReactNode  // deprecated
 };

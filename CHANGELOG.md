@@ -10,6 +10,14 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.6
+
+- **New Feature**
+    + added pre-defined types (#14):
+        * `t.ReactElement`
+        * `t.ReactNode`
+    + `ReactElement` and `ReactNode` at top level are deprecated
+
 ## v0.8.5
 
 - **New Feature**

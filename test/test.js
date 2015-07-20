@@ -1,3 +1,4 @@
+/* global describe,it */
 'use strict';
 var assert = require('assert');
 var throwsWithMessage = function (f, message) {
