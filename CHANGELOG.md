@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.7
+
+- **New Feature**
+    + Added support for childContextTypes and contextTypes (thanks [@gavacho](https://github.com/gavacho))
+
 ## v0.8.6
 
 - **New Feature**

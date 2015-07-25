@@ -67,7 +67,7 @@ function getPropTypes(type) {
       var extra = [];
 
       for (var k in values) {
-        if (k !== '__strict__' && k !=== '__subtype__' && values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
+        if (k !== '__strict__' && k !== '__subtype__' && values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
           extra.push(k);
         }
       }
