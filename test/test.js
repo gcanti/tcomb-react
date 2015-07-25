@@ -69,6 +69,9 @@ describe('propTypes', function () {
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
+    doesNotThrow(function() {
+      runPropTypes(propTypes, {name: 'a', __strict__: void 0, __subtype__: void 0});
+    });
   });
 
   it('should check a subtype', function () {
