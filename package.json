@@ -1,6 +1,6 @@
 {
   "name": "tcomb-react",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "babel-eslint": "^3.1.23",
+    "babelify": "^6.1.3",
     "eslint": "^0.22.1",
     "eslint-plugin-react": "^2.7.1",
     "mocha": "^2.2.5"

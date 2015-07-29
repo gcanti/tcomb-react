@@ -55,7 +55,7 @@ describe('propTypes', function () {
     assert.deepEqual(Object.keys(propTypes), ['name', '__strict__']);
     throwsWithMessage(function () {
       runPropTypes(propTypes, {});
-    }, 'Invalid prop \"name\" supplied to <diplayName>, should be a Str.\n\nDetected errors (1):\n\n 1. / is undefined should be a Str\n\n');
+    }, '[tcomb] Invalid prop \"name\" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. / is undefined should be a String\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
@@ -65,7 +65,7 @@ describe('propTypes', function () {
     var propTypes = getPropTypes({name: t.Str});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {});
-    }, 'Invalid prop \"name\" supplied to <diplayName>, should be a Str.\n\nDetected errors (1):\n\n 1. / is undefined should be a Str\n\n');
+    }, '[tcomb] Invalid prop \"name\" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. / is undefined should be a String\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
@@ -81,7 +81,7 @@ describe('propTypes', function () {
     var propTypes = getPropTypes(T);
     throwsWithMessage(function () {
       runPropTypes(propTypes, {name: 'b'});
-    }, 'Invalid props {\"name\":\"b\"} supplied to <diplayName>, should be a {{name: Str} | startsWithA}.');
+    }, '[tcomb] Invalid props:\n\n{\n  \"name\": \"b\"\n}\n\nsupplied to <diplayName>, should be a {{name: String} | startsWithA} subtype.');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
@@ -91,7 +91,14 @@ describe('propTypes', function () {
     var propTypes = getPropTypes({name: t.Str});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {name: 'a', surname: 'b'});
-    }, 'Invalid additional prop(s) ["surname"] supplied to <diplayName>.');
+    }, '[tcomb] Invalid additional prop(s):\n\n[\n  "surname"\n]\n\nsupplied to <diplayName>.');
+  });
+
+  it('should allow to opt-out the additional props check', function () {
+    var propTypes = getPropTypes({name: t.Str}, { strict: false });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {name: 'a', surname: 'b'});
+    });
   });
 
 });
@@ -102,7 +109,7 @@ describe('pre-defined types', function () {
     var propTypes = getPropTypes({el: ReactElement});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {el: 'a'});
-    }, 'Invalid prop \"el\" supplied to <diplayName>, should be a ReactElement.\n\nDetected errors (1):\n\n 1. / is "a" should be a ReactElement\n\n');
+    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactElement.\n\nDetected errors (1):\n\n 1. / is "a" should be a ReactElement\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {el: React.createElement('div')});
     });
@@ -112,7 +119,7 @@ describe('pre-defined types', function () {
     var propTypes = getPropTypes({el: ReactNode});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {el: true});
-    }, 'Invalid prop \"el\" supplied to <diplayName>, should be a ReactNode.\n\nDetected errors (1):\n\n 1. / is true should be a ReactNode\n\n');
+    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactNode.\n\nDetected errors (1):\n\n 1. / is true should be a ReactNode\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {el: 'a'});
     });

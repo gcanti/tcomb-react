@@ -34,13 +34,69 @@ class Card extends React.Component {
 }
 ```
 
-**Note**. `@props` can accepts a subtype of a struct.
+**Note**. `@props` can accepts a subtype of a struct (see [The subtype combinator](https://github.com/gcanti/tcomb/blob/master/GUIDE.md#the-subtype-combinator)).
 
 ```js
 @props(t.subtype(t.struct({
   name: t.Str,
   ...
 }), () => { ... }))
+```
+
+## Unwanted additional props
+
+By default tcomb-react checks unwanted additional props:
+
+```js
+@props({
+  name: t.Str
+})
+class Person extends React.Component {
+
+  render() {
+    return (
+      <div>
+        <p>{this.props.name}</p>
+      </div>
+    );
+  }
+
+}
+
+...
+
+<Person name="Giulio" surname="Canti" />
+```
+
+ouput to console:
+
+```
+Warning: Failed propType: [tcomb] Invalid additional prop(s):
+
+[
+  "surname"
+]
+
+supplied to Person.
+```
+
+You can **opt-out** passing an additional argument `{ strict: false }`:
+
+```js
+@props({
+  name: t.Str
+}, { strict: false })
+class Person extends React.Component {
+
+  render() {
+    return (
+      <div>
+        <p>{this.props.name}</p>
+      </div>
+    );
+  }
+
+}
 ```
 
 # ES5

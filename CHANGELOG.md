@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.8
+
+- **New Feature**
+    + additional argument `options` to `propType()` to allow a finer configuration
+
 ## v0.8.7
 
 - **New Feature**
