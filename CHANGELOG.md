@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## 0.8.9
+
+- **Internal**
+    - upgrade to react v0.14.0-rc1
+
 ## v0.8.8
 
 - **New Feature**
