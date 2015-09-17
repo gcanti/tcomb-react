@@ -55,7 +55,7 @@ describe('propTypes', function () {
     assert.deepEqual(Object.keys(propTypes), ['name', '__strict__']);
     throwsWithMessage(function () {
       runPropTypes(propTypes, {});
-    }, '[tcomb] Invalid prop \"name\" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. / is undefined should be a String\n\n');
+    }, '[tcomb] Invalid prop "name" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. Invalid value undefined supplied to String\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
@@ -65,7 +65,7 @@ describe('propTypes', function () {
     var propTypes = getPropTypes({name: t.Str});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {});
-    }, '[tcomb] Invalid prop \"name\" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. / is undefined should be a String\n\n');
+    }, '[tcomb] Invalid prop "name" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. Invalid value undefined supplied to String\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });
@@ -109,7 +109,7 @@ describe('pre-defined types', function () {
     var propTypes = getPropTypes({el: ReactElement});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {el: 'a'});
-    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactElement.\n\nDetected errors (1):\n\n 1. / is "a" should be a ReactElement\n\n');
+    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactElement.\n\nDetected errors (1):\n\n 1. Invalid value "a" supplied to ReactElement\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {el: React.createElement('div')});
     });
@@ -119,7 +119,7 @@ describe('pre-defined types', function () {
     var propTypes = getPropTypes({el: ReactNode});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {el: true});
-    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactNode.\n\nDetected errors (1):\n\n 1. / is true should be a ReactNode\n\n');
+    }, '[tcomb] Invalid prop "el" supplied to <diplayName>, should be a ReactNode.\n\nDetected errors (1):\n\n 1. Invalid value true supplied to ReactNode\n\n');
     doesNotThrow(function () {
       runPropTypes(propTypes, {el: 'a'});
     });
