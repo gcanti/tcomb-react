@@ -10,13 +10,13 @@
 ```js
 import { props, t } from 'tcomb-react';
 
-const Gender = t.enums.of(['Male', 'Female']);
-const URL = t.subtype(t.Str, s => s.startsWith('http'));
+const Gender = t.enums.of(['Male', 'Female'], 'Gender');
+const URL = t.subtype(t.String, s => s.startsWith('http'), 'URL');
 
 @props({
-  name: t.Str,
-  surname: t.maybe(t.Str),
-  age: t.Num,
+  name: t.String,
+  surname: t.maybe(t.String),
+  age: t.Number,
   gender: Gender,
   avatar: URL
 })
@@ -38,7 +38,7 @@ class Card extends React.Component {
 
 ```js
 @props(t.subtype(t.struct({
-  name: t.Str,
+  name: t.String,
   ...
 }), () => { ... }))
 ```
@@ -49,7 +49,7 @@ By default tcomb-react checks unwanted additional props:
 
 ```js
 @props({
-  name: t.Str
+  name: t.String
 })
 class Person extends React.Component {
 
@@ -84,7 +84,7 @@ You can **opt-out** passing an additional argument `{ strict: false }`:
 
 ```js
 @props({
-  name: t.Str
+  name: t.String
 }, { strict: false })
 class Person extends React.Component {
 
@@ -105,15 +105,15 @@ class Person extends React.Component {
 var t = require('tcomb-react').t;
 var propTypes = require('tcomb-react').propTypes;
 
-var Gender = t.enums.of(['Male', 'Female']);
-var URL = t.subtype(t.Str, function (s) { return s.startsWith('http'); });
+var Gender = t.enums.of(['Male', 'Female'], 'Gender');
+var URL = t.subtype(t.String, function (s) { return s.startsWith('http'); }, 'URL');
 
 var Card = React.createClass({
 
   propTypes: propTypes({
-    name: t.Str,
-    surname: t.maybe(t.Str),
-    age: t.Num,
+    name: t.String,
+    surname: t.maybe(t.String),
+    age: t.Number,
     gender: Gender,
     avatar: URL
   }),
@@ -158,12 +158,12 @@ class MyComponent extends React.Component {
 
 | Type | React | tcomb-react |
 |------|-------|-------------|
-| array | array | Arr |
-| boolean | bool | Bool |
-| functions | func | Func |
-| numbers | number | Num |
-| objects | object | Obj |
-| strings | string | Str |
+| array | array | Array |
+| boolean | bool | Boolean |
+| functions | func | Function |
+| numbers | number | Number |
+| objects | object | Object |
+| strings | string | String |
 | all | any | Any |
 | required prop | T.isRequired | T |
 | optional prop | T | maybe(T) |
