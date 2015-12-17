@@ -142,9 +142,17 @@ var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
   return t.Str.is(x) || t.Num.is(x) || ReactElement.is(x) || t.list(ReactNode).is(x);
 });
+var ReactChild = t.irreducible('ReactChild', function(x) {
+  return ReactNode.is(x) || t.Boolean.is(x) || t.Nil.is(x);
+});
+var ReactChildren = t.irreducible('ReactChildren', function(x) {
+  return ReactChild.is(x) || t.list(ReactChild).is(x);
+});
 
 t.ReactElement = ReactElement;
 t.ReactNode = ReactNode;
+t.ReactChild = ReactChild;
+t.ReactChildren = ReactChildren;
 
 module.exports = {
   t: t,

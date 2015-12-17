@@ -140,4 +140,54 @@ describe('pre-defined types', function () {
     });
   });
 
+  it('should check ReactChild', function () {
+    var propTypes = getPropTypes({el: t.ReactChild});
+    throwsWithMessage(function () {
+      runPropTypes(propTypes, {el: {}});
+    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactChild.\n\nDetected errors (1):\n\n 1. Invalid value {} supplied to ReactChild\n\n');
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: true});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: 'a'});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: 1});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: React.createElement('div')});
+    });
+  });
+
+  it('should check ReactChildren', function () {
+    var propTypes = getPropTypes({el: t.ReactChildren});
+    throwsWithMessage(function () {
+      runPropTypes(propTypes, {el: {}});
+    }, '[tcomb] Invalid prop \"el\" supplied to <diplayName>, should be a ReactChildren.\n\nDetected errors (1):\n\n 1. Invalid value {} supplied to ReactChildren\n\n');
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: true});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: 'a'});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: 1});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: React.createElement('div')});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: [true, React.createElement('div')]});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: ['a', React.createElement('div')]});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: [1, React.createElement('div')]});
+    });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: [React.createElement('div'), React.createElement('a')]});
+    });
+  });
+
 });
