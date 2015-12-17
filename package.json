@@ -4,7 +4,7 @@
   "description": "Type checking for React components",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint index.js",
+    "lint": "eslint index.js test",
     "test": "npm run lint && npm run mocha",
     "mocha": "mocha"
   },
