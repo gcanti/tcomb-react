@@ -134,12 +134,14 @@ var Card = React.createClass({
 
 - `t.ReactElement`
 - `t.ReactNode`
+- `t.ReactChild`
+- `t.ReactChildren`
 
 ```js
 import { props, t } from 'tcomb-react';
 
 @props({
-  children: t.ReactElement // allow only one child
+  children: t.ReactChild // allow only one child
 })
 class MyComponent extends React.Component {
 
@@ -177,3 +179,5 @@ class MyComponent extends React.Component {
 | duck typing | shape | struct |
 | react element | element | ReactElement |
 | react node | node | ReactNode |
+| react child | ✘ | ReactChild |
+| react children | ✘ | ReactChildren |
