@@ -10,7 +10,12 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
-## 0.8.9
+## v0.8.10
+
+- **New Feature**
+    - `ReactChild` and `ReactChildren` pre-defined types, fix #19 (thanks @jedmao)
+
+## v0.8.9
 
 - **Internal**
     - upgrade to react v0.14.0-rc1
