@@ -1,5 +1,5 @@
-[![build status](https://img.shields.io/travis/gcanti/tcomb/master.svg?style=flat-square)](https://travis-ci.org/gcanti/tcomb-react)
-[![dependency status](https://img.shields.io/david/gcanti/tcomb.svg?style=flat-square)](https://david-dm.org/gcanti/tcomb-react)
+[![build status](https://img.shields.io/travis/gcanti/tcomb-react/master.svg?style=flat-square)](https://travis-ci.org/gcanti/tcomb-react)
+[![dependency status](https://img.shields.io/david/gcanti/tcomb-react.svg?style=flat-square)](https://david-dm.org/gcanti/tcomb-react)
 ![npm downloads](https://img.shields.io/npm/dm/tcomb-react.svg)
 
 # Features
