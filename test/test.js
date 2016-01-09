@@ -23,6 +23,20 @@ function runPropTypes(propTypes, props) {
   }
 }
 
+function production(f) {
+  return function () {
+    process.env.NODE_ENV = 'production';
+    try {
+      f();
+    } catch (e) {
+      assert.fail(e.message);
+    }
+    finally {
+      process.env.NODE_ENV = 'development';
+    }
+  };
+}
+
 describe('exports', function () {
 
   it('should export tcomb', function () {
@@ -99,6 +113,19 @@ describe('propTypes', function () {
     var propTypes = getPropTypes({name: t.String}, { strict: false });
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a', surname: 'b'});
+    });
+  });
+
+  it('should be a no-op in production', function () {
+    var T = t.subtype(t.struct({name: t.String}), function startsWithA(x) {
+      return x.name.indexOf('a') === 0;
+    });
+    var propTypes = getPropTypes(T);
+    production(function () {
+      runPropTypes(propTypes, {});
+      assert.equal(propTypes.name('s'), undefined);
+      assert.equal(propTypes.__strict__, undefined);
+      assert.equal(propTypes.__subtype__, undefined);
     });
   });
 
