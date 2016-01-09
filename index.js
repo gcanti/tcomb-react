@@ -33,7 +33,6 @@ function getPropTypes(type, options) {
   Object.keys(props).forEach(function (k) {
 
     var propType = props[k];
-    var propTypeName = t.getTypeName(propType);
     var checkPropType;
 
     if (process.env.NODE_ENV !== 'production') {
@@ -48,7 +47,7 @@ function getPropTypes(type, options) {
         if (!validationResult.isValid()) {
 
           var message = [
-            'Invalid prop ' + t.stringify(prop) + ' supplied to ' + displayName + ', should be a ' + propTypeName + '.\n',
+            'Invalid prop ' + t.stringify(prop) + ' supplied to ' + displayName + ', should be a ' + t.getTypeName(propType) + '.\n',
             'Detected errors (' + validationResult.errors.length + '):\n'
           ].concat(validationResult.errors.map(function (e, i) {
             return ' ' + (i + 1) + '. ' + e.message;
