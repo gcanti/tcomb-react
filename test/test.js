@@ -1,13 +1,6 @@
 /* global describe,it */
 'use strict';
 var assert = require('assert');
-var throwsWithMessage = function (f, message) {
-  assert.throws(f, function (err) {
-    assert.ok(err instanceof Error);
-    assert.strictEqual(err.message, message);
-    return true;
-  });
-};
 var doesNotThrow = assert.doesNotThrow;
 var React = require('react');
 var t = require('tcomb-validation');
@@ -16,11 +9,19 @@ var getPropTypes = library.propTypes;
 var ReactElement = library.ReactElement;
 var ReactNode = library.ReactNode;
 
-var runPropTypes = function (propTypes, props) {
+function throwsWithMessage(f, message) {
+  assert.throws(f, function (err) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.message, message);
+    return true;
+  });
+}
+
+function runPropTypes(propTypes, props) {
   for (var prop in propTypes) {
     propTypes[prop](props, prop, '<diplayName>');
   }
-};
+}
 
 describe('exports', function () {
 
@@ -49,7 +50,7 @@ describe('exports', function () {
 describe('propTypes', function () {
 
   it('should check bad values', function () {
-    var T = t.struct({name: t.Str});
+    var T = t.struct({name: t.String});
     var propTypes = getPropTypes(T);
     assert.ok(typeof propTypes === 'object');
     assert.deepEqual(Object.keys(propTypes), ['name', '__strict__']);
@@ -62,7 +63,7 @@ describe('propTypes', function () {
   });
 
   it('should accept a hash of props instead of a struct', function () {
-    var propTypes = getPropTypes({name: t.Str});
+    var propTypes = getPropTypes({name: t.String});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {});
     }, '[tcomb] Invalid prop "name" supplied to <diplayName>, should be a String.\n\nDetected errors (1):\n\n 1. Invalid value undefined supplied to String\n\n');
@@ -75,7 +76,7 @@ describe('propTypes', function () {
   });
 
   it('should check a subtype', function () {
-    var T = t.subtype(t.struct({name: t.Str}), function startsWithA(x) {
+    var T = t.subtype(t.struct({name: t.String}), function startsWithA(x) {
       return x.name.indexOf('a') === 0;
     });
     var propTypes = getPropTypes(T);
@@ -88,14 +89,14 @@ describe('propTypes', function () {
   });
 
   it('should check additional props', function () {
-    var propTypes = getPropTypes({name: t.Str});
+    var propTypes = getPropTypes({name: t.String});
     throwsWithMessage(function () {
       runPropTypes(propTypes, {name: 'a', surname: 'b'});
     }, '[tcomb] Invalid additional prop(s):\n\n[\n  "surname"\n]\n\nsupplied to <diplayName>.');
   });
 
   it('should allow to opt-out the additional props check', function () {
-    var propTypes = getPropTypes({name: t.Str}, { strict: false });
+    var propTypes = getPropTypes({name: t.String}, { strict: false });
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a', surname: 'b'});
     });
