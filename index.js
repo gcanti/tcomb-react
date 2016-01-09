@@ -42,7 +42,7 @@ function getPropTypes(type, options) {
       checkPropType = function (values, prop, displayName) {
 
         var value = values[prop];
-        var validationResult = t.validate(value, props[prop]);
+        var validationResult = t.validate(value, propType);
 
         if (!validationResult.isValid()) {
 
@@ -72,10 +72,24 @@ function getPropTypes(type, options) {
     propTypes[k] = checkPropType;
   });
 
+  if (isSubtype) {
+    if (process.env.NODE_ENV !== 'production') {
+      propTypes.__subtype__ = function (values, prop, displayName) {
+        if (!type.meta.predicate(values)) {
+          t.fail('Invalid props:\n\n' + t.stringify(values) + '\n\nsupplied to ' + displayName + ', should be a ' + t.getTypeName(type) + ' subtype.');
+        }
+      };
+    } else {
+      propTypes.__subtype__ = function () {};
+    }
+
+    // attach the original predicate, so other components can read it
+    // via `propTypes.__subtype__.predicate`
+    propTypes.__subtype__.predicate = type.meta.predicate;
+  }
+
   if (process.env.NODE_ENV !== 'production') {
-
     options = options || {};
-
     // allows to opt-out additional props check
     if (options.strict !== false) {
       propTypes.__strict__ = function (values, prop, displayName) {
@@ -88,14 +102,6 @@ function getPropTypes(type, options) {
         }
         if (extra.length > 0) {
           t.fail('Invalid additional prop(s):\n\n' + t.stringify(extra) + '\n\nsupplied to ' + displayName + '.');
-        }
-      };
-    }
-
-    if (isSubtype) {
-      propTypes.__subtype__ = function (values, prop, displayName) {
-        if (!type.meta.predicate(values)) {
-          t.fail('Invalid props:\n\n' + t.stringify(values) + '\n\nsupplied to ' + displayName + ', should be a ' + t.getTypeName(type) + ' subtype.');
         }
       };
     }
@@ -113,6 +119,10 @@ function es7PropsDecorator(type, options) {
     Component.propTypes = getPropTypes(type, options);
   };
 }
+
+//
+// Built-in types
+//
 
 var ReactElement = t.irreducible('ReactElement', React.isValidElement);
 var ReactNode = t.irreducible('ReactNode', function (x) {
