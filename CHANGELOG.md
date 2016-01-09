@@ -10,6 +10,14 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.11
+
+- **New Feature**
+    - attach the original predicate to `propTypes.__subtype__.predicate` so other components can read it
+- **Internal**
+    - upgrade to latest `tcomb-validation` (2.2.0)
+    - add tests for production env
+
 ## v0.8.10
 
 - **New Feature**
