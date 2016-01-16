@@ -8,6 +8,10 @@ var library = require('../index');
 var getPropTypes = library.propTypes;
 var ReactElement = library.ReactElement;
 var ReactNode = library.ReactNode;
+var path = require('path');
+var fs = require('fs');
+var parse = require('../lib/parse');
+var toMarkdown = require('../lib/toMarkdown');
 
 function throwsWithMessage(f, message) {
   assert.throws(f, function (err) {
@@ -219,3 +223,43 @@ describe('pre-defined types', function () {
   });
 
 });
+
+var skipDirectories = {
+  '.DS_Store': 1
+};
+
+describe('parse', function () {
+  var fixturesDir = path.join(__dirname, 'fixtures/parse');
+  fs.readdirSync(fixturesDir).map(function (caseName) {
+    if ((caseName in skipDirectories)) {
+      return;
+    }
+    it(caseName, function () {
+      var fixtureDir = path.join(fixturesDir, caseName);
+      var filepath = path.join(fixtureDir, 'Actual.js');
+      var expected = require(path.join(fixtureDir, 'expected.json'));
+      assert.deepEqual(JSON.stringify(parse(filepath)), JSON.stringify(expected));
+    });
+  });
+});
+
+function trim(str) {
+  return str.replace(/^\s+|\s+$/, '');
+}
+
+describe('toMarkdown', function () {
+  var fixturesDir = path.join(__dirname, 'fixtures/toMarkdown');
+  fs.readdirSync(fixturesDir).map(function (caseName) {
+    if ((caseName in skipDirectories)) {
+      return;
+    }
+    it(caseName, function () {
+      var actualFixtureDir = path.join(__dirname, 'fixtures/parse', caseName);
+      var filepath = path.join(actualFixtureDir, 'Actual.js');
+      var fixtureDir = path.join(fixturesDir, caseName);
+      const expected = fs.readFileSync(path.join(fixtureDir, 'expected.md')).toString();
+      assert.equal(trim(toMarkdown(parse(filepath))), trim(expected));
+    });
+  });
+});
+

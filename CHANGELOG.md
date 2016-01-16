@@ -10,6 +10,12 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.12
+
+- **New Feature**
+    - Documentation tool: `parse` module, fix #24
+    - Documentation tool: `toMarkdown` module, fix #25
+
 ## v0.8.11
 
 - **New Feature**

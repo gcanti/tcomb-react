@@ -1,0 +1,12 @@
+{
+  "name": "Component",
+  "description": null,
+  "props": {
+    "name": {
+      "kind": "irreducible",
+      "name": "String",
+      "required": true,
+      "description": "prop description"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Component",
+  "description": "Component description here\nname and surname must be both nil or both specified",
+  "props": {
+    "name": {
+      "kind": "irreducible",
+      "name": "String",
+      "required": false,
+      "defaultValue": "Giulio",
+      "description": "name description"
+    },
+    "surname": {
+      "kind": "irreducible",
+      "name": "String",
+      "required": false,
+      "defaultValue": "Canti",
+      "description": "surname description"
+    }
+  }
+}
