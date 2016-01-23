@@ -1,0 +1,19 @@
+{
+  "name": "Card",
+  "description": "Component description here",
+  "props": {
+    "name": {
+      "kind": "irreducible",
+      "name": "String",
+      "required": true,
+      "description": "name description here"
+    },
+    "surname": {
+      "kind": "irreducible",
+      "name": "String",
+      "required": false,
+      "defaultValue": "Canti",
+      "description": "surname description here"
+    }
+  }
+}
