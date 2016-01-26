@@ -219,8 +219,8 @@ Output
 
 ```js
 import parse from 'tcomb-react/lib/parse'
-import path import 'path'
-import glob import 'glob'
+import path from 'path'
+import glob from 'glob'
 
 function getPath(file) {
   return path.resolve(process.cwd(), file);
