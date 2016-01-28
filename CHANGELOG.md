@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.8.13
+
+- **Bug Fix**
+    - `t.ReactChildren` rejects a correctly renderable `children`, fix #29 (thanks @FrancescoCioria)
+
 ## v0.8.12
 
 - **New Feature**
