@@ -220,6 +220,9 @@ describe('pre-defined types', function () {
     doesNotThrow(function () {
       runPropTypes(propTypes, {el: [React.createElement('div'), React.createElement('a')]});
     });
+    doesNotThrow(function () {
+      runPropTypes(propTypes, {el: [ 'hello', [ null, 'a' ] ]});
+    });
   });
 
 });
