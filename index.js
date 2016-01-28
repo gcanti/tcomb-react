@@ -132,7 +132,7 @@ var ReactChild = t.irreducible('ReactChild', function(x) {
   return ReactNode.is(x) || t.Bool.is(x) || t.Nil.is(x);
 });
 var ReactChildren = t.irreducible('ReactChildren', function(x) {
-  return ReactChild.is(x) || t.list(ReactChild).is(x);
+  return ReactChild.is(x) || t.list(ReactChildren).is(x);
 });
 
 t.ReactElement = ReactElement;
