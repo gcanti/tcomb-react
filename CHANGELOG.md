@@ -10,6 +10,14 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.9.0
+
+**Warning**. If you don't rely in your codebase on the property `maybe(MyType)(undefined) === null` this **is not a breaking change** for you.
+
+- **Breaking Change**
+    - upgrade to `tcomb-doc` v0.5.0
+    - upgrade to `tcomb-validation` v3.0.0
+
 ## v0.8.13
 
 - **Bug Fix**
