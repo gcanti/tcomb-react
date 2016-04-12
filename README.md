@@ -10,6 +10,10 @@
 - additional fine grained type checks, nestable at arbitrary level
 - builds on [tcomb](https://github.com/gcanti/tcomb), [tcomb-validation](https://github.com/gcanti/tcomb-validation), [tcomb-doc](https://github.com/gcanti/tcomb-doc) libraries
 
+# Compatibility
+
+React: `^0.13.0`, `^0.14.0`, `^15.0.0`
+
 # Prop types
 
 ## The `@props` decorator (ES7)
