@@ -100,7 +100,7 @@ describe('propTypes', function () {
     var propTypes = getPropTypes(T);
     throwsWithMessage(function () {
       runPropTypes(propTypes, {name: 'b'});
-    }, '[tcomb] Invalid props:\n\n{\n  \"name\": \"b\"\n}\n\nsupplied to <diplayName>, should be a {{name: String} | startsWithA} subtype.');
+    }, '[tcomb] Invalid props:\n\n{\n  \"name\": \"b\"\n}\n\nsupplied to <diplayName>, should be a {Struct{name: String} | startsWithA} subtype.');
     doesNotThrow(function () {
       runPropTypes(propTypes, {name: 'a'});
     });

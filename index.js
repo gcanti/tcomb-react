@@ -21,8 +21,8 @@ function getPropTypes(type, options) {
   // here type should be a struct or a subtype of a struct
   if (process.env.NODE_ENV !== 'production') {
     t.assert(
-      t.isType(type) && ( isStruct(type) || ( isSubtype && isStruct(type.meta.type) ) ),
-      '[tcomb-react] Invalid argument type supplied to propTypes(), must be a struct, a subtype of a struct or a dictionary prop -> type'
+      t.isType(type),
+      '[tcomb-react] Invalid argument type supplied to propTypes()'
     );
   }
 

@@ -10,6 +10,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+## v0.9.1
+
+- **New Feature**
+    - account for `interface`s (tcomb ^3.1.0)
+
 ## v0.9.0
 
 **Warning**. If you don't rely in your codebase on the property `maybe(MyType)(undefined) === null` this **is not a breaking change** for you.
