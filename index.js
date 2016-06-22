@@ -135,15 +135,21 @@ var ReactChildren = t.irreducible('ReactChildren', function(x) {
   return ReactChild.is(x) || t.list(ReactChildren).is(x);
 });
 
-t.ReactElement = ReactElement;
-t.ReactNode = ReactNode;
-t.ReactChild = ReactChild;
-t.ReactChildren = ReactChildren;
+t.ReactElement = ReactElement; // deprecated
+t.ReactNode = ReactNode; // deprecated
+t.ReactChild = ReactChild; // deprecated
+t.ReactChildren = ReactChildren; // deprecated
 
 module.exports = {
-  t: t,
+  t: t, // deprecated
   propTypes: getPropTypes,
   props: es7PropsDecorator,
-  ReactElement: ReactElement, // deprecated
-  ReactNode: ReactNode  // deprecated
+  ReactElement: ReactElement,
+  ReactNode: ReactNode,
+  ReactChild: ReactChild,
+  ReactChildren: ReactChildren,
+  ReactElementT: ReactElement,
+  ReactNodeT: ReactNode,
+  ReactChildT: ReactChild,
+  ReactChildrenT: ReactChildren
 };

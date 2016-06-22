@@ -37,10 +37,11 @@ where
 **Example** (ES7)
 
 ```js
-import { props, t } from 'tcomb-react';
+import t from 'tcomb'
+import { props } from 'tcomb-react'
 
-const Gender = t.enums.of(['Male', 'Female'], 'Gender');
-const URL = t.refinement(t.String, (s) => s.startsWith('http'), 'URL');
+const Gender = t.enums.of(['Male', 'Female'], 'Gender')
+const URL = t.refinement(t.String, (s) => s.startsWith('http'), 'URL')
 
 @props({
   name: t.String,             // a required string
@@ -57,7 +58,7 @@ class Card extends React.Component {
         <p>{this.props.name}</p>
         ...
       </div>
-    );
+    )
   }
 
 }
@@ -78,7 +79,7 @@ class Person extends React.Component {
       <div>
         <p>{this.props.name}</p>
       </div>
-    );
+    )
   }
 
 }
@@ -111,7 +112,7 @@ Same as `@props`.
 **Example** (ES5)
 
 ```js
-var t = require('tcomb-react').t;
+var t = require('tcomb');
 var propTypes = require('tcomb-react').propTypes;
 
 var Gender = t.enums.of(['Male', 'Female'], 'Gender');
@@ -156,7 +157,8 @@ Given a path to a component file returns a JSON / JavaScript blob containing **p
 Source
 
 ```js
-import { t, props } from 'tcomb-react'
+import t from 'tcomb'
+import { props } from 'tcomb-react'
 
 /**
  * Component description here
@@ -180,7 +182,7 @@ export default class Card extends React.Component {
         <p>{this.props.name}</p>
         <p>{this.props.surname}</p>
       </div>
-    );
+    )
   }
 }
 ```
@@ -272,18 +274,18 @@ Component description here
 
 `tcomb-react` exports some useful pre-defined types:
 
-- `t.ReactElement`
-- `t.ReactNode`
-- `t.ReactChild`
-- `t.ReactChildren`
+- `ReactElement`
+- `ReactNode`
+- `ReactChild`
+- `ReactChildren`
 
 **Example**
 
 ```js
-import { props, t } from 'tcomb-react';
+import { props, ReactChild } from 'tcomb-react';
 
 @props({
-  children: t.ReactChild // only one child is allowed
+  children: ReactChild // only one child is allowed
 })
 class MyComponent extends React.Component {
 
@@ -297,6 +299,15 @@ class MyComponent extends React.Component {
 
 }
 ```
+
+# Support for babel-plugin-tcomb
+
+The following types for Flow are exported:
+
+- `ReactElementT`
+- `ReactNodeT`
+- `ReactChildT`
+- `ReactChildrenT`
 
 # Comparison table
 
