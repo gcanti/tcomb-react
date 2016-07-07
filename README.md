@@ -150,7 +150,7 @@ var Card = React.createClass({
 
 ## How it works
 
-The `@props` decorator sets `propTypes` on the target component to use a [custom validator function](https://facebook.github.io/react/docs/reusable-components.html#prop-validation) built around tcomb types for each specified prop. 
+The `@props` decorator sets `propTypes` on the target component to use a [custom validator function](https://facebook.github.io/react/docs/reusable-components.html#prop-validation) built around tcomb types for each specified prop.
 
 For example, the following:
 
@@ -165,7 +165,9 @@ class MyComponent extends React.Component {
   // ...
 }
 ```
+
 is roughly equivalent to:
+
 ```js
 const URL = t.refinement(t.String, (s) => s.startsWith('http'), 'URL');
 
@@ -174,7 +176,7 @@ class MyComponent extends React.Component {
 }
 MyComponent.propTypes = {
   name: function(props, propName, componentName) {
-    if (!t.validate(props[propName], t.String).isValid()) { // <= t.String instead of t.string and isValid() call
+    if (!t.validate(props[propName], t.String).isValid()) {
       return new Error('...');
     }
   },
