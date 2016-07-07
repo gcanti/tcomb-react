@@ -25,12 +25,20 @@ For an equivalent implementation in ES5 see the `propTypes` function below.
 ```js
 type Props = {[key: string]: TcombType};
 
-@props(type: Props | TcombType, options?: Object)
+type PropsType = TcombStruct | TcombInterface;
+
+type Type = Props | PropsType | Refinement<PropsType>;
+
+type Options = {
+  strict?: boolean // default true
+};
+
+@props(type: Type, options?: Options)
 ```
 
 where
 
-- `type` can be a map `string -> TcombType`, a `tcomb` struct or a refinement of a struct
+- `type` can be a map `string -> TcombType`, a `tcomb` struct, a `tcomb` interface, a refinement of a `tcomb` struct, a refinement of a `tcomb` interface
 - `options`:
   - `strict: boolean` (default `true`) if `true` checks for unwanted additional props
 

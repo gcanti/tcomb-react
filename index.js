@@ -1,10 +1,6 @@
 var React = require('react');
 var t = require('tcomb-validation');
 
-function isStruct(type) {
-  return ( type.meta.kind === 'struct' );
-}
-
 //
 // main function
 //
