@@ -148,6 +148,44 @@ var Card = React.createClass({
 });
 ```
 
+## The babel plugin
+
+Using [babel-plugin-tcomb](https://github.com/gcanti/babel-plugin-tcomb) you can express `propTypes` as Flow type annotations:
+
+```js
+import React from 'react'
+import ReactDOM from 'react-dom'
+import type { $Refinement } from 'tcomb'
+import { props } from 'tcomb-react'
+
+type Gender = 'Male' | 'Female';
+
+const isUrl = (s) => s.startsWith('http')
+type URL = string & $Refinement<typeof isUrl>;
+
+type Props = {
+  name: string,
+  surname: ?string,
+  age: number,
+  gender: Gender,
+  avatar: URL
+};
+
+@props(Props)
+class Card extends React.Component {
+
+  render() {
+    return (
+      <div>
+        <p>{this.props.name}</p>
+        ...
+      </div>
+    )
+  }
+
+}
+```
+
 # Extract documentation from your components
 
 ## The `parse` function
