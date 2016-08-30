@@ -1,6 +1,15 @@
 var React = require('react');
 var t = require('tcomb-validation');
 
+function getMessage(errors, what, displayName, type) {
+  return [
+    'Invalid ' + what + ' supplied to ' + displayName + ', should be a ' + t.getTypeName(type) + '.\n',
+    'Detected errors (' + errors.length + '):\n'
+  ].concat(errors.map(function (e, i) {
+    return ' ' + (i + 1) + '. ' + e.message;
+  })).join('\n') + '\n\n';
+}
+
 //
 // main function
 //
@@ -23,50 +32,78 @@ function getPropTypes(type, options) {
   }
 
   var propTypes = {};
-  var innerStruct = isSubtype ? type.meta.type : type;
-  var props = innerStruct.meta.props;
+  var innerType = isSubtype ? type.meta.type : type;
 
-  Object.keys(props).forEach(function (k) {
+  if (innerType.meta.kind === 'struct' || innerType.meta.kind === 'interface') {
+    var props = innerType.meta.props;
 
-    var propType = props[k];
-    var checkPropType;
+    Object.keys(props).forEach(function (k) {
+
+      var propType = props[k];
+      var checkPropType;
+
+      if (process.env.NODE_ENV !== 'production') {
+
+        // React custom prop validators
+        // see http://facebook.github.io/react/docs/reusable-components.html
+        checkPropType = function (values, prop, displayName) {
+
+          var value = values[prop];
+          var validationResult = t.validate(value, propType);
+
+          if (!validationResult.isValid()) {
+
+            var message = getMessage(validationResult.errors, 'prop ' + t.stringify(prop), displayName, propType);
+
+            // add a readable entry in the call stack
+            // when "Pause on exceptions" and "Pause on Caught Exceptions"
+            // are enabled in Chrome DevTools
+            checkPropType.displayName = message;
+
+            t.fail(message);
+          }
+        };
+      } else {
+        checkPropType = function () {};
+      }
+
+      // attach the original tcomb definition, so other components can read it
+      // via `propTypes.whatever.tcomb`
+      checkPropType.tcomb = propType;
+
+      propTypes[k] = checkPropType;
+    });
 
     if (process.env.NODE_ENV !== 'production') {
-
-      // React custom prop validators
-      // see http://facebook.github.io/react/docs/reusable-components.html
-      checkPropType = function (values, prop, displayName) {
-
-        var value = values[prop];
-        var validationResult = t.validate(value, propType);
-
-        if (!validationResult.isValid()) {
-
-          var message = [
-            'Invalid prop ' + t.stringify(prop) + ' supplied to ' + displayName + ', should be a ' + t.getTypeName(propType) + '.\n',
-            'Detected errors (' + validationResult.errors.length + '):\n'
-          ].concat(validationResult.errors.map(function (e, i) {
-            return ' ' + (i + 1) + '. ' + e.message;
-          })).join('\n') + '\n\n';
-
-          // add a readable entry in the call stack
-          // when "Pause on exceptions" and "Pause on Caught Exceptions"
-          // are enabled in Chrome DevTools
-          checkPropType.displayName = message;
-
-          t.fail(message);
-        }
-      };
-    } else {
-      checkPropType = function () {};
+      options = options || {};
+      // allows to opt-out additional props check
+      if (options.strict !== false) {
+        propTypes.__strict__ = function (values, prop, displayName) {
+          var extra = [];
+          for (var k in values) {
+            // __strict__ and __subtype__ keys are excluded in order to support the React context feature
+            if (k !== '__strict__' && k !== '__subtype__' && values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
+              extra.push(k);
+            }
+          }
+          if (extra.length > 0) {
+            t.fail('Invalid additional prop(s):\n\n' + t.stringify(extra) + '\n\nsupplied to ' + displayName + '.');
+          }
+        };
+      }
     }
 
-    // attach the original tcomb definition, so other components can read it
-    // via `propTypes.whatever.tcomb`
-    checkPropType.tcomb = propType;
-
-    propTypes[k] = checkPropType;
-  });
+  }
+  else {
+    if (process.env.NODE_ENV !== 'production') {
+      propTypes.__generictype__ = function (values, prop, displayName) {
+        var validationResult = t.validate(values, innerType);
+        if (!validationResult.isValid()) {
+          t.fail(getMessage(validationResult.errors, 'props', displayName, innerType));
+        }
+      };
+    }
+  }
 
   if (isSubtype) {
     if (process.env.NODE_ENV !== 'production') {
@@ -82,25 +119,6 @@ function getPropTypes(type, options) {
     // attach the original predicate, so other components can read it
     // via `propTypes.__subtype__.predicate`
     propTypes.__subtype__.predicate = type.meta.predicate;
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    options = options || {};
-    // allows to opt-out additional props check
-    if (options.strict !== false) {
-      propTypes.__strict__ = function (values, prop, displayName) {
-        var extra = [];
-        for (var k in values) {
-          // __strict__ and __subtype__ keys are excluded in order to support the React context feature
-          if (k !== '__strict__' && k !== '__subtype__' && values.hasOwnProperty(k) && !props.hasOwnProperty(k)) {
-            extra.push(k);
-          }
-        }
-        if (extra.length > 0) {
-          t.fail('Invalid additional prop(s):\n\n' + t.stringify(extra) + '\n\nsupplied to ' + displayName + '.');
-        }
-      };
-    }
   }
 
   return propTypes;

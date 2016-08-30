@@ -225,6 +225,15 @@ describe('pre-defined types', function () {
     });
   });
 
+  it('should support all tcomb types', function () {
+    var I = t.intersection([t.interface({a: t.String}), t.interface({b: t.Number})]);
+    var propTypes = getPropTypes(I);
+    runPropTypes(propTypes, {a: 's', b: 1});
+    throwsWithMessage(function () {
+      runPropTypes(propTypes, {});
+    }, '[tcomb] Invalid props supplied to <diplayName>, should be a {a: String} & {b: Number}.\n\nDetected errors (2):\n\n 1. Invalid value undefined supplied to /a: String\n 2. Invalid value undefined supplied to /b: Number\n\n');
+  });
+
 });
 
 var skipDirectories = {
@@ -260,7 +269,7 @@ describe('toMarkdown', function () {
       var actualFixtureDir = path.join(__dirname, 'fixtures/parse', caseName);
       var filepath = path.join(actualFixtureDir, 'Actual.js');
       var fixtureDir = path.join(fixturesDir, caseName);
-      const expected = fs.readFileSync(path.join(fixtureDir, 'expected.md')).toString();
+      var expected = fs.readFileSync(path.join(fixtureDir, 'expected.md')).toString();
       assert.equal(trim(toMarkdown(parse(filepath))), trim(expected));
     });
   });
