@@ -11,6 +11,11 @@
 
 **Note**: Gaps between patch versions are faulty/broken releases.
 
+# v0.9.3
+
+- **New Feature**
+    - support all tcomb types, fix #40 (@gcanti)
+
 # v0.9.2
 
 - **Experimental**
