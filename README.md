@@ -18,7 +18,7 @@ React: `^0.13.0`, `^0.14.0`, `^15.0.0`
 
 ## The `@props` decorator (ES7)
 
-For an equivalent implementation in ES5 see the `propTypes` function below.
+For an equivalent implementation in ES5, or for Stateless Components, see the `propTypes` function below.
 
 **Signature**
 
@@ -111,13 +111,28 @@ supplied to Person.
 
 **Note**. You can **opt-out** passing the `option` argument `{ strict: false }`.
 
-## The `propTypes` function (ES5)
+## The `propTypes` function
 
 **Signature**
 
 Same as `@props`.
 
-**Example** (ES5)
+**Stateless Component Example** 
+
+```js
+import { propTypes } from 'tcomb-react'
+
+const MyComponentProps = t.struct({
+  name: t.String,
+});
+
+const MyComponent = (props) => (
+  <div />
+);
+MyComponent.propTypes = propTypes(MyComponentProps);
+```
+
+**ES5 `React.createClass` Example**
 
 ```js
 var t = require('tcomb');
