@@ -11,7 +11,7 @@
 - builds on [tcomb](https://github.com/gcanti/tcomb), [tcomb-validation](https://github.com/gcanti/tcomb-validation), [tcomb-doc](https://github.com/gcanti/tcomb-doc) libraries
 
 # Compatibility
-`tcom-react` has been tested and found working on the following targets. 
+`tcomb-react` has been tested and found working on the following targets. 
 The list is not exhaustive and `tcomb-react` will probably work on other versions that haven't been listed.
 
 React: `^0.13.0`, `^0.14.0`, `^15.0.0`
