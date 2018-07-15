@@ -11,7 +11,7 @@
 - builds on [tcomb](https://github.com/gcanti/tcomb), [tcomb-validation](https://github.com/gcanti/tcomb-validation), [tcomb-doc](https://github.com/gcanti/tcomb-doc) libraries
 
 # Compatibility
-`tcomb-react` has been tested and found working on the following targets. 
+`tcomb-react` has been tested and found working on the following targets.
 The list is not exhaustive and `tcomb-react` will probably work on other versions that haven't been listed.
 
 React: `^0.13.0`, `^0.14.0`, `^15.0.0`
@@ -40,7 +40,7 @@ type Options = {
 
 where
 
-- `type` can be a map `string -> TcombType`, a `tcomb` struct, a `tcomb` interface, a refinement of a `tcomb` struct, a refinement of a `tcomb` interface
+- `type` can be a map `string -> TcombType`, a `tcomb` struct, a `tcomb` interface, a refinement of a `tcomb` struct / interface, a refinement of a `tcomb` interface
 - `options`:
   - `strict: boolean` (default `true`) if `true` checks for unwanted additional props
 
@@ -119,12 +119,12 @@ supplied to Person.
 
 Same as `@props`.
 
-**Stateless Component Example** 
+**Stateless Component Example**
 
 ```js
 import { propTypes } from 'tcomb-react'
 
-const MyComponentProps = t.struct({
+const MyComponentProps = t.interface({
   name: t.String,
 });
 
@@ -432,7 +432,7 @@ The following types for Flow are exported:
 | dictionaries | objectOf(T) | dict(T, U) (keys are checked) |
 | enums | oneOf(['a', 'b']) | enums.of('a b') |
 | unions | oneOfType([T, U]) | union([T, U]) |
-| duck typing | shape | struct |
+| duck typing | shape | interface |
 | react element | element | ReactElement |
 | react node | node | ReactNode |
 | react child | ✘ | ReactChild |
